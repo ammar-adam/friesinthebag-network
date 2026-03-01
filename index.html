@@ -362,7 +362,7 @@
       <h1 class="hero-title stagger-1">What's your network actually worth?</h1>
       <p class="hero-subtitle stagger-2">You have a $8M network. You're using $0.47 of it.</p>
       <div class="stagger-3">
-        <button class="btn btn-primary" id="cta-btn" onclick="goToSection('data-input')">Calculate My Score →</button>
+        <button class="btn btn-primary" id="cta-btn" type="button">Calculate My Score →</button>
       </div>
       <p class="privacy-muted stagger-4">All processing happens in your browser. Your data never leaves your device.</p>
     </section>
@@ -1707,9 +1707,18 @@
     window.renderLeaderboard = renderLeaderboard;
     window.screenshotGraph = screenshotGraph;
 
+    function initClickHandlers() {
+      var cta = document.getElementById('cta-btn');
+      if (cta) cta.addEventListener('click', function() { goToSection('data-input'); });
+    }
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initFileUploads);
+      document.addEventListener('DOMContentLoaded', function() {
+        initClickHandlers();
+        initFileUploads();
+      });
     } else {
+      initClickHandlers();
       initFileUploads();
     }
   })();
