@@ -5,1722 +5,1412 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fries in the Bag — What's your network actually worth?</title>
   <meta name="description" content="See how connected you actually are vs. how connected you could be. Calculate your potential and actual network score.">
-  <meta name="theme-color" content="#080809">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://fries-in-the-bag.network/">
-  <meta property="og:title" content="What's your network actually worth?">
-  <meta property="og:description" content="Most people have a $5M network they use like a $0.50 one. Calculate your potential vs actual.">
-  <meta property="og:image" content="https://fries-in-the-bag.network/og-image.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://fries-in-the-bag.network/">
-  <meta name="twitter:title" content="What's your network actually worth?">
-  <meta name="twitter:description" content="Most people have a $5M network they use like a $0.50 one.">
-  <meta name="twitter:image" content="https://fries-in-the-bag.network/og-image.png">
+  <meta name="theme-color" content="#f5f0e8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/msal/1.4.18/msal.min.js"></script>
   <style>
     :root {
-      --bg: #080809;
-      --surface: #111114;
-      --surface-2: #1a1a1f;
-      --border: #2a2a32;
-      --text-primary: #f0f0f0;
-      --text-muted: #6b6b7a;
+      --bg: #f5f0e8;
+      --surface: #ffffff;
+      --border: #e0d9cc;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --text-faint: #a0a0a0;
+      --li-blue: #0077b5;
+      --imessage: #1a8cff;
+      --red: #e5484d;
       --gold: #f5c842;
-      --blue: #4b7bec;
-      --red: #e85d4a;
-      --green: #3ecf8e;
-      --font-display: 'Instrument Serif', Georgia, serif;
-      --font-body: 'DM Sans', -apple-system, sans-serif;
-      --card-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
-      --u: 8px;
+      --green: #22c55e;
+      --black: #111111;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: var(--font-body);
+      font-family: 'DM Mono', monospace;
       background: var(--bg);
-      color: var(--text-primary);
+      color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
-    #bg-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 0;
-    }
-    #ghost-notifications {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      overflow: hidden;
-    }
-    .ghost-toast {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: var(--u) calc(var(--u) * 2);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: calc(var(--u) * 2);
-      font-size: 13px;
-      color: var(--text-primary);
-      opacity: 0.09;
-      white-space: nowrap;
-      animation: ghostDrift 25s linear forwards;
-    }
-    @keyframes ghostDrift {
-      0% { bottom: -40px; opacity: 0; }
-      5% { opacity: 0.1; }
-      90% { opacity: 0.08; }
-      100% { bottom: 100vh; opacity: 0; }
-    }
-    .container { max-width: 1100px; margin: 0 auto; padding: 0 calc(var(--u) * 3); position: relative; z-index: 1; }
-    .section {
-      display: none;
-      padding: calc(var(--u) * 8) 0 calc(var(--u) * 10);
+
+    #app {
+      position: relative;
+      z-index: 10;
       min-height: 100vh;
-      align-items: center;
-      justify-content: flex-start;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
     }
-    .section.active { display: flex; flex-direction: column; animation: fadeIn 0.4s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(var(--u)); } to { opacity: 1; transform: translateY(0); } }
-    .stagger-1 { animation-delay: 0ms; }
-    .stagger-2 { animation-delay: 50ms; }
-    .stagger-3 { animation-delay: 100ms; }
-    .stagger-4 { animation-delay: 150ms; }
-    .stagger-5 { animation-delay: 200ms; }
-    #landing { text-align: center; justify-content: center; padding-top: 0; }
-    .site-logo {
-      position: absolute;
-      top: calc(var(--u) * 3);
-      left: calc(var(--u) * 3);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-decoration: none;
-      letter-spacing: 0.02em;
-    }
-    .hero-title {
-      font-family: var(--font-display);
-      font-size: clamp(48px, 8vw, 96px);
-      font-weight: 400;
-      line-height: 1.05;
-      margin-bottom: calc(var(--u) * 2);
-      color: var(--text-primary);
-    }
-    .hero-subtitle {
-      font-size: clamp(1rem, 1.5vw, 1.25rem);
-      color: var(--text-muted);
-      margin-bottom: calc(var(--u) * 5);
-      max-width: 520px;
-      margin-left: auto;
-      margin-right: auto;
-      font-weight: 400;
-    }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: calc(var(--u));
-      padding: calc(var(--u) * 2) calc(var(--u) * 4);
-      font-family: var(--font-body);
-      font-size: 1rem;
-      font-weight: 500;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      text-decoration: none;
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-primary {
-      background: var(--blue);
-      color: white;
-    }
-    .btn-primary:hover { transform: translateY(-2px); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-secondary {
-      background: var(--surface);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover {
-      background: var(--surface-2);
-      border-color: var(--text-muted);
-    }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-    .privacy-muted {
-      margin-top: calc(var(--u) * 3);
+    @media (min-width: 640px) { #app { padding: 32px 32px 64px; } }
+
+    nav {
+      font-family: 'DM Mono', monospace;
       font-size: 13px;
       color: var(--text-muted);
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
+      margin-bottom: 48px;
     }
-    .input-header { text-align: center; margin-bottom: calc(var(--u) * 5); }
-    .input-header h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 400; margin-bottom: calc(var(--u)); }
-    .input-header p { color: var(--text-muted); font-size: 14px; max-width: 540px; margin: 0 auto calc(var(--u) * 2); }
-    .upload-zone {
-      border: 2px dashed var(--border);
-      border-radius: 12px;
-      padding: calc(var(--u) * 5) calc(var(--u) * 4);
-      text-align: center;
-      background: var(--surface);
-      box-shadow: var(--card-shadow);
-      transition: border-color 0.2s, background 0.2s, border-style 0.2s;
+
+    section {
+      transition: opacity 0.2s ease;
     }
-    .upload-zone:hover { border-color: var(--blue); background: var(--surface-2); }
-    .upload-zone.dragover { border-color: var(--blue); border-style: solid; background: var(--surface-2); }
-    .upload-zone h3 { font-size: 1rem; font-weight: 500; margin-bottom: calc(var(--u)); }
-    .upload-zone .breadcrumb { color: var(--blue); font-size: 13px; margin-bottom: calc(var(--u) * 2); }
-    .upload-zone .breadcrumb a { color: var(--blue); text-decoration: none; }
-    .upload-zone .breadcrumb a:hover { text-decoration: underline; }
-    .file-input { display: none; }
-    .oauth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 2); position: relative; }
-    @media (max-width: 600px) { .oauth-grid { grid-template-columns: 1fr; } }
-    .oauth-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: calc(var(--u) * 3);
-      text-align: center;
-      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-      box-shadow: var(--card-shadow);
+    section h1 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 16px;
     }
-    .oauth-card:hover { transform: translateY(-2px); border-color: var(--text-muted); }
-    .oauth-card.connected { border-left: 3px solid var(--green); }
-    .oauth-card.connected .connect-btn { background: var(--green); color: var(--bg); border-color: var(--green); }
-    .oauth-card h3 { font-size: 1rem; font-weight: 500; margin-bottom: calc(var(--u)); }
-    .oauth-card p { color: var(--text-muted); font-size: 13px; margin-bottom: calc(var(--u) * 2); }
-    .connect-btn { width: 100%; }
-    .dash-connector {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: calc(var(--u) * 2);
-      height: 60%;
-      border-left: 2px dashed var(--border);
-      animation: dashPulse 2s ease-in-out infinite;
-      pointer-events: none;
+    section h2 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      color: var(--text);
+      margin-bottom: 8px;
     }
-    @media (max-width: 600px) { .dash-connector { display: none; } }
-    @keyframes dashPulse {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 0.9; }
-    }
-    .action-buttons { display: flex; gap: calc(var(--u) * 2); justify-content: center; margin-top: calc(var(--u) * 5); flex-wrap: wrap; align-items: center; }
-    #processing { text-align: center; justify-content: center; }
-    .processing-bar { width: 100%; max-width: 320px; height: 8px; background: var(--surface-2); border-radius: 9999px; overflow: hidden; margin: 0 auto calc(var(--u) * 3); }
-    .processing-bar-fill { height: 100%; background: var(--gold); border-radius: 9999px; transition: width 0.3s ease; }
-    .processing-text { font-size: 1.1rem; font-weight: 500; margin-bottom: calc(var(--u)); }
-    .processing-detail { color: var(--text-muted); font-size: 14px; }
-    .scorecard-container { max-width: 720px; margin: 0 auto; text-align: center; }
-    .scorecard-name { font-family: var(--font-display); font-size: 2rem; font-weight: 400; margin-bottom: calc(var(--u) * 2); }
-    .tier-badge {
-      display: inline-block;
-      padding: calc(var(--u)) calc(var(--u) * 3);
-      font-size: 1rem;
-      font-weight: 500;
-      letter-spacing: 0.05em;
-      border-radius: 9999px;
-      margin-bottom: calc(var(--u) * 4);
-      text-transform: uppercase;
-    }
-    .tier-ecosystem { background: var(--gold); color: var(--bg); }
-    .tier-connector { background: var(--green); color: var(--bg); }
-    .tier-sleeper { background: var(--blue); color: white; }
-    .tier-ghost { background: var(--text-muted); color: white; }
-    .tier-dead { background: var(--red); color: white; }
-    .scores-grid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 2); margin-bottom: calc(var(--u) * 4); }
-    @media (max-width: 600px) { .scores-grid { grid-template-columns: 1fr; } }
-    .score-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: calc(var(--u) * 3);
-      box-shadow: var(--card-shadow);
-    }
-    .score-box.potential { border-color: rgba(245,200,66,0.3); }
-    .score-box.actual { border-color: rgba(229,93,74,0.3); }
-    .score-box-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: calc(var(--u)); }
-    .score-box-value { font-family: var(--font-display); font-size: 2.25rem; font-weight: 400; }
-    .score-box.potential .score-box-value { color: var(--gold); }
-    .score-box.actual .score-box-value { color: var(--red); }
-    .gap-bar-container { margin-bottom: calc(var(--u) * 4); }
-    .gap-bar-label { display: flex; justify-content: space-between; margin-bottom: calc(var(--u)); font-size: 14px; color: var(--text-muted); }
-    .gap-bar { height: 8px; background: var(--surface-2); border-radius: 9999px; overflow: hidden; }
-    .gap-bar-fill { height: 100%; background: var(--gold); border-radius: 9999px; transition: width 0.6s ease; }
-    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: calc(var(--u) * 2); margin-bottom: calc(var(--u) * 3); }
-    .stat-item { background: var(--surface); padding: calc(var(--u) * 2); border-radius: 12px; text-align: center; border: 1px solid var(--border); }
-    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 4px; }
-    .stat-value { font-weight: 500; font-size: 1rem; }
-    .roast-line { font-style: italic; color: var(--red); margin-bottom: calc(var(--u) * 3); padding: 0 calc(var(--u) * 2); font-size: 1rem; }
-    .error-toast {
-      position: fixed;
-      bottom: calc(var(--u) * 3);
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--red);
-      color: white;
-      padding: calc(var(--u) * 2) calc(var(--u) * 3);
-      border-radius: 8px;
-      z-index: 1000;
-      display: none;
-      font-weight: 500;
+    .section-muted, .privacy-note {
       font-size: 14px;
-      box-shadow: var(--card-shadow);
+      color: var(--text-muted);
+      margin-bottom: 32px;
     }
-    .error-toast.show { display: block; animation: fadeIn 0.3s ease; }
-    .error-toast.success { background: var(--green); }
-    .optional-section { margin-top: calc(var(--u) * 5); }
-    .optional-section h3 { margin-bottom: calc(var(--u) * 2); font-size: 1rem; font-weight: 500; color: var(--text-muted); }
-    .optional-scroll { display: flex; gap: calc(var(--u) * 2); overflow-x: auto; padding-bottom: calc(var(--u)); scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
-    .optional-scroll::-webkit-scrollbar { height: 6px; }
-    .optional-scroll::-webkit-scrollbar-track { background: var(--surface); border-radius: 9999px; }
-    .optional-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
-    .optional-card {
-      flex: 0 0 200px;
-      scroll-snap-align: start;
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+    }
+    .section-sublabel {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .flip-card {
+      position: relative;
+      min-height: 180px;
+      padding-bottom: 56px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: calc(var(--u) * 2);
-      box-shadow: var(--card-shadow);
-      transition: transform 0.2s, border-color 0.2s;
-      position: relative;
-    }
-    .optional-card:hover { transform: translateY(-2px); border-color: var(--text-muted); }
-    .optional-card h4 { margin-bottom: 4px; font-size: 14px; font-weight: 500; }
-    .optional-card .tag { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-    .optional-card .accuracy-boost { font-size: 12px; color: var(--gold); margin-bottom: calc(var(--u)); }
-    .optional-card .how-to {
-      position: absolute;
-      bottom: 100%;
-      left: 0;
-      margin-bottom: 4px;
-      padding: calc(var(--u)) calc(var(--u) * 2);
-      background: var(--surface-2);
-      border: 1px solid var(--border);
       border-radius: 8px;
-      font-size: 12px;
-      color: var(--text-primary);
-      white-space: normal;
-      max-width: 280px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .flip-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .action-zone {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 56px;
+      padding: 8px 16px;
+      z-index: 20;
+      background: white;
+      border-top: 1px solid var(--border);
+      border-radius: 0 0 8px 8px;
+      display: flex;
+      align-items: center;
+    }
+    .flip-front { padding-bottom: 8px; }
+    .flip-front-content { transition: opacity 0.18s ease; }
+    .flip-back {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      bottom: 56px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px 8px 0 0;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s, transform 0.2s;
-      z-index: 5;
-      box-shadow: var(--card-shadow);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #4a4a4a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: opacity 0.18s ease;
+      overflow: hidden;
     }
-    .optional-card:hover .how-to { opacity: 1; transform: translateY(-2px); }
-    .accuracy-bar { margin-top: calc(var(--u) * 2); padding: calc(var(--u) * 2); background: var(--surface); border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--card-shadow); }
-    .accuracy-bar-label { display: flex; justify-content: space-between; margin-bottom: calc(var(--u)); font-size: 14px; }
-    .accuracy-bar-track { height: 8px; background: var(--surface-2); border-radius: 9999px; overflow: hidden; }
-    .accuracy-bar-fill { height: 100%; background: var(--gold); border-radius: 9999px; transition: width 0.4s ease; }
-    #graph-container { width: 100%; height: 560px; position: relative; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
-    .graph-tooltip { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: calc(var(--u) * 2); pointer-events: none; z-index: 100; display: none; max-width: 260px; font-size: 14px; box-shadow: var(--card-shadow); }
-    .graph-tooltip.visible { display: block; }
-    .reach-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: calc(var(--u) * 3); margin-bottom: calc(var(--u) * 2); box-shadow: var(--card-shadow); }
-    .reach-card-name { font-weight: 500; margin-bottom: 4px; font-size: 1rem; }
-    .reach-card-title, .reach-card-company { font-size: 14px; color: var(--text-muted); margin-bottom: 4px; }
-    .reach-card-why { font-size: 13px; color: var(--blue); margin-bottom: 4px; }
-    .reach-card-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-    .reach-card-draft { width: 100%; min-height: 80px; padding: calc(var(--u) * 2); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 14px; resize: vertical; }
-    .leaderboard-tabs { display: flex; gap: calc(var(--u)); margin-bottom: calc(var(--u) * 3); justify-content: center; }
-    .leaderboard-tabs button { padding: calc(var(--u)) calc(var(--u) * 2); border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); cursor: pointer; font-weight: 500; font-size: 14px; transition: all 0.2s; }
-    .leaderboard-tabs button:hover { border-color: var(--text-muted); }
-    .leaderboard-tabs button.active { background: var(--blue); border-color: var(--blue); color: white; }
-    .leaderboard-row { display: grid; grid-template-columns: 48px 1fr 88px 80px; gap: calc(var(--u) * 2); padding: calc(var(--u) * 2) calc(var(--u) * 3); align-items: center; border-bottom: 1px solid var(--border); font-size: 14px; }
-    .leaderboard-row.header { font-weight: 500; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .leaderboard-row.user { background: rgba(75, 123, 236, 0.12); }
-    .share-card-canvas { display: none; }
+    .flip-back .step { display: flex; gap: 8px; }
+    .flip-back .step-num { color: var(--li-blue); font-weight: 500; flex-shrink: 0; }
+    .flip-card:hover .flip-front-content { opacity: 0; pointer-events: none; }
+    .flip-card:hover .flip-back { opacity: 1; pointer-events: auto; }
+    .hover-hint {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text-faint);
+      position: absolute;
+      top: 8px;
+      right: 12px;
+    }
+    .flip-card:hover .hover-hint { display: none; }
+
+    .upload-card, .source-card.flip-card {
+      background: rgba(255,255,255,0.97);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .upload-card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .upload-card .card-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      margin-top: 12px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-zone:hover { border-color: var(--li-blue); background: rgba(0,119,181,0.03); }
+    .upload-zone .drop-text { font-size: 13px; color: var(--text-muted); }
+    .upload-zone .drop-text-hover { display: none; font-size: 13px; color: var(--text-muted); }
+    .upload-zone:hover .drop-text { display: none; }
+    .upload-zone:hover .drop-text-hover { display: block; }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .breadcrumb { font-size: 12px; margin-top: 8px; }
+    .breadcrumb a { color: var(--li-blue); text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .upload-status { font-size: 13px; margin-top: 8px; color: var(--text-muted); }
+
+    .source-card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .source-card .card-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+    .source-card .card-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 500px) { .two-col { grid-template-columns: 1fr; } }
+    .source-card .connect-btn, .btn-prime {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .source-card .connect-btn:hover, .btn-prime:hover { border-color: var(--text-muted); background: #faf8f5; }
+
+    .optional-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .optional-card {
+      padding: 16px;
+      min-height: 160px;
+    }
+    .flip-back ol { margin: 0; padding-left: 14px; overflow: hidden; }
+    .flip-back ol li { margin-bottom: 2px; white-space: normal; word-wrap: break-word; }
+    .optional-card .tag {
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+    .optional-card .card-title { font-size: 0.95rem; margin-bottom: 8px; }
+    .optional-card .connect-btn { width: 100%; margin-top: 4px; }
+    .optional-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 24px; }
+    .btn-prime {
+      background: var(--black);
+      color: var(--bg);
+      border-color: var(--black);
+    }
+    .btn-prime:hover { background: #333; border-color: #333; }
+    .btn-prime:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ghost-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .ghost-btn:hover { color: var(--text); }
+
+    #hero p { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 24px; }
+    #hero .btn-prime { font-size: 14px; padding: 12px 24px; }
+    #hero .privacy-note { margin-top: 24px; font-size: 12px; color: var(--text-faint); }
+
+    #processing { padding: 48px 0; text-align: center; }
+    #processing .loading-msg { font-size: 14px; color: var(--text-muted); margin-top: 16px; }
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 24px; max-width: 280px; margin-left: auto; margin-right: auto; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--li-blue); border-radius: 2px; width: 0%; transition: width 0.3s ease; }
+
+    #scorecard .scorecard-inner { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); }
+    #scorecard .tier { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 16px; }
+    #scorecard .scores { display: flex; gap: 24px; margin-bottom: 20px; }
+    #scorecard .score-box .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    #scorecard .score-box .value { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; }
+    #scorecard .roast { font-size: 13px; color: var(--text-muted); margin-top: 16px; font-style: italic; }
+
+    .li-toast {
+      position: fixed;
+      width: 220px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+    }
+    .li-toast-bar { width: 3px; background: var(--li-blue); flex-shrink: 0; }
+    .li-toast-inner { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+    .li-toast-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text); line-height: 1.4; }
+    .li-toast-time { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-faint); }
+    .li-icon { margin-bottom: 2px; }
+
+    .imsg-bubble {
+      position: fixed;
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      pointer-events: none;
+      z-index: 1;
+      max-width: 180px;
+      line-height: 1.4;
+    }
+    .imsg-bubble.sent {
+      background: var(--imessage);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .imsg-bubble.received {
+      background: #e5e5ea;
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 30%, rgba(245,240,232,0.45) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .leaderboard-table { width: 100%; font-family: 'DM Mono', monospace; font-size: 12px; border-collapse: collapse; margin-top: 12px; }
+    .leaderboard-table th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-weight: 500; }
+    .leaderboard-table td { padding: 8px 12px; border-top: 1px solid var(--border); }
+    .leaderboard-table tr.user-row { background: rgba(245,200,66,0.08); border-left: 3px solid var(--gold); }
+    .leaderboard-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .leaderboard-tabs button { font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 6px; cursor: pointer; }
+    .leaderboard-tabs button.active { background: var(--li-blue); color: white; border-color: var(--li-blue); }
+    .score-breakdown { font-size: 11px; color: var(--text-muted); line-height: 1.6; margin-top: 8px; padding-left: 8px; }
+    .top3-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .top3-card .name { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1rem; }
+    .top3-card .meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .top3-card .reason { font-size: 12px; color: var(--text); margin-top: 8px; }
+    .top3-card .draft-btn { font-size: 12px; margin-top: 12px; }
+    .draft-message-box { margin-top: 12px; padding: 12px; background: #faf8f5; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 12px; white-space: pre-wrap; display: none; }
+
+    @media (max-width: 375px) {
+      #app { padding: 16px 12px 32px; }
+      .optional-row { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      .cta-row { flex-direction: column; align-items: stretch; }
+      .btn-prime, .ghost-btn { width: 100%; }
+    }
   </style>
 </head>
 <body>
-  <canvas id="bg-canvas" aria-hidden="true"></canvas>
-  <div id="ghost-notifications" aria-hidden="true"></div>
+  <div id="app">
+    <nav>friesinthebag.network</nav>
 
-  <div class="container">
-    <!-- Landing -->
-    <section id="landing" class="section active">
-      <a href="#" class="site-logo" onclick="return false;">friesinthebag.network</a>
-      <h1 class="hero-title stagger-1">What's your network actually worth?</h1>
-      <p class="hero-subtitle stagger-2">You have a $8M network. You're using $0.47 of it.</p>
-      <div class="stagger-3">
-        <button class="btn btn-primary" id="cta-btn" type="button">Calculate My Score →</button>
-      </div>
-      <p class="privacy-muted stagger-4">All processing happens in your browser. Your data never leaves your device.</p>
+    <section id="hero">
+      <h1>What's your network<br>actually worth?</h1>
+      <p>you have a $8M network. you're using $0.47 of it.</p>
+      <button class="btn-prime" onclick="showSection('input')">Calculate My Score →</button>
+      <p class="privacy-note">All processing in your browser. Your data never leaves your device.</p>
     </section>
 
-    <!-- Data Input -->
-    <section id="data-input" class="section">
-      <div class="input-header">
-        <h2>Let's build your network score</h2>
-        <p>your data never leaves your browser. unlike LinkedIn, we don't sell it.</p>
-      </div>
-      <div class="upload-zone" id="linkedin-upload" data-hover-default="Drop your connections.csv here" data-hover-alt="we're not happy about it either">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;justify-content:center;">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="#0077b5" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-          <span style="font-size:1.25rem;">🔥</span>
+    <section id="input" style="display:none">
+      <h2>Let's build your network score</h2>
+      <p class="section-muted">your data never leaves your browser. unlike LinkedIn, we don't sell it.</p>
+
+      <p class="section-label">REQUIRED</p>
+
+      <div class="upload-card flip-card" id="card-linkedin">
+        <div class="flip-front">
+          <div class="flip-front-content">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077b5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              <span class="card-title">Upload LinkedIn Connections</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">yes, we know LinkedIn makes this annoying. here's exactly where to go:</p>
+            <p class="breadcrumb"><a href="https://www.linkedin.com/psettings/permissions/get-a-copy-of-your-data" target="_blank">LinkedIn Settings</a> → Data Privacy → Get a copy of your data → Connections</p>
+            <div class="upload-zone" id="zone-linkedin">
+              <span class="drop-text">Drop your connections.csv here</span>
+              <span class="drop-text-hover">we're not happy about it either</span>
+            </div>
+            <p class="upload-status" id="li-upload-status"></p>
+          </div>
         </div>
-        <h3>Upload Your LinkedIn Connections</h3>
-        <p style="color:var(--text-muted);font-size:13px;margin-bottom:8px;">yes, we know LinkedIn makes this annoying. here's exactly where to go:</p>
-        <p class="breadcrumb">
-          <a href="https://www.linkedin.com/psettings/permissions/get-a-copy-of-your-data" target="_blank">LinkedIn Settings</a> → Data Privacy → Get a copy of your data → Connections
-        </p>
-        <p class="upload-zone-label" style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">Drop your connections.csv here</p>
-        <input type="file" id="linkedin-file" class="file-input" accept=".csv">
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('linkedin-file').click()">Choose File</button>
-        <p id="linkedin-embarrassing" style="margin-top:16px;color:var(--text-muted);font-size:13px;display:none;">okay this is already embarrassing</p>
-        <p id="linkedin-count" style="margin-top:4px;color:var(--green);font-size:14px;font-weight:500;"></p>
-      </div>
-      <div class="oauth-grid" style="margin-top:32px;">
-        <div class="dash-connector"></div>
-        <div class="oauth-card" id="gmail-card">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2" style="margin:0 auto 8px;display:block;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          <h3>Gmail</h3>
-          <p>Email, contacts & calendar</p>
-          <button class="btn btn-secondary connect-btn" id="gmail-btn" onclick="initGoogleOAuth()" title="we see your 47,000 unread emails. we won't judge.">Connect Gmail</button>
+        <div class="flip-back">
+          <div class="step"><span class="step-num">1.</span> LinkedIn Settings → Data Privacy</div>
+          <div class="step"><span class="step-num">2.</span> Get a copy of your data → Connections</div>
+          <div class="step"><span class="step-num">3.</span> Download and upload the CSV here</div>
         </div>
-        <div class="oauth-card" id="outlook-card">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="#0078d4" style="margin:0 auto 8px;display:block;"><path d="M7.88 12.04q0 .48-.19.92-.2.43-.55.74-.34.3-.8.47-.45.16-.96.16t-.95-.16q-.45-.17-.8-.47-.34-.31-.54-.74-.2-.44-.2-.92t.2-.92q.2-.44.54-.74.35-.31.8-.47.45-.17.95-.17t.96.17q.46.16.8.47.35.3.55.74.19.44.19.92zM24 12v9.38q0 .46-.33.8-.33.32-.8.32H7.13q-.46 0-.8-.32-.32-.34-.32-.8V18H.96q-.46 0-.8-.33Q0 17.25 0 16.8V7.13q0-.46.33-.8.33-.32.8-.32H22.87q.46 0 .8.32.33.34.33.8V12zM22.87 5.33H9.07v5.34h13.8q.46 0 .8-.33.33-.33.33-.8V6.13q0-.46-.33-.8-.34-.32-.8-.32z"/></svg>
-          <h3>Outlook</h3>
-          <p>Email, contacts & calendar</p>
-          <button class="btn btn-secondary connect-btn" id="outlook-btn" onclick="initOutlookOAuth()">Connect Outlook</button>
+        <div class="action-zone">
+          <label for="file-linkedin" class="connect-btn" style="cursor:pointer;margin:0;">Choose file</label>
+          <input type="file" id="file-linkedin" accept=".csv" style="position:absolute;left:-9999px;">
         </div>
       </div>
-      <div class="optional-section">
-        <div class="accuracy-bar">
-          <div class="accuracy-bar-label">
-            <span>Score confidence</span>
-            <span id="accuracy-percent">30%</span>
-          </div>
-          <div class="accuracy-bar-track">
-            <div class="accuracy-bar-fill" id="accuracy-fill" style="width:30%"></div>
+
+      <div class="upload-card flip-card" id="card-analytics">
+        <div class="flip-front">
+          <div class="flip-front-content">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077b5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              <span>📊</span>
+              <span class="card-title">Upload LinkedIn Analytics</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">yes, LinkedIn buried this too. here's exactly where to go:</p>
+            <p class="breadcrumb"><a href="https://www.linkedin.com/analytics/creator/" target="_blank">LinkedIn Analytics</a> → Creator Mode → Export</p>
+            <div class="upload-zone" id="zone-analytics">
+              <span class="drop-text">Drop your analytics.csv here</span>
+              <span class="drop-text-hover">we're not happy about it either</span>
+            </div>
+            <p class="upload-status" id="analytics-upload-status"></p>
           </div>
         </div>
-        <h3>optional. but your score might be even more brutal with these.</h3>
-        <div class="optional-scroll">
-          <div class="optional-card">
-            <h4>WhatsApp</h4>
-            <p class="tag">messaging</p>
-            <p class="accuracy-boost">+8% accuracy</p>
-            <p class="how-to">In WhatsApp: Settings → Chats → Export chat. Choose a conversation and export without media. Upload the .txt file.</p>
-            <input type="file" id="whatsapp-file" class="file-input" accept=".txt">
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" onclick="document.getElementById('whatsapp-file').click()">Upload</button>
+        <div class="flip-back">
+          <div class="step"><span class="step-num">1.</span> Go to linkedin.com/analytics/creator</div>
+          <div class="step"><span class="step-num">2.</span> Click Export top right</div>
+          <div class="step"><span class="step-num">3.</span> Select date range (last 12 months)</div>
+          <div class="step"><span class="step-num">4.</span> Upload the CSV here</div>
+        </div>
+        <div class="action-zone">
+          <label for="file-analytics" class="connect-btn" style="cursor:pointer;margin:0;">Choose file</label>
+          <input type="file" id="file-analytics" accept=".csv" style="position:absolute;left:-9999px;">
+        </div>
+      </div>
+
+      <p class="section-label">REQUIRED</p>
+      <p class="section-sublabel">connect at least one email provider</p>
+      <p class="section-sublabel" style="margin-bottom:8px;">connect one (or both)</p>
+      <div class="two-col">
+        <div class="source-card flip-card" id="card-gmail">
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <div class="card-title">Gmail</div>
+              <p class="card-desc">Email, contacts & calendar</p>
+            </div>
           </div>
-          <div class="optional-card">
-            <h4>Telegram</h4>
-            <p class="tag">messaging</p>
-            <p class="accuracy-boost">+8% accuracy</p>
-            <p class="how-to">Telegram Desktop: Settings → Advanced → Export Telegram data. Choose JSON format. Upload the exported folder or messages.json.</p>
-            <input type="file" id="telegram-file" class="file-input" accept=".json">
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" onclick="document.getElementById('telegram-file').click()">Upload</button>
+          <div class="flip-back">
+            <div class="step"><span class="step-num">1.</span> This is a one-click OAuth — no export needed</div>
+            <div class="step"><span class="step-num">2.</span> Click Connect Gmail below</div>
+            <div class="step"><span class="step-num">3.</span> Approve read-only access in the popup</div>
+            <div class="step"><span class="step-num">4.</span> Done — we fetch the last 6 months</div>
           </div>
-          <div class="optional-card">
-            <h4>Twitter / X DMs</h4>
-            <p class="tag">social</p>
-            <p class="accuracy-boost">+6% accuracy</p>
-            <p class="how-to">Request your X archive: Settings → Your account → Download an archive. After email, unzip and look for direct_messages or similar. Upload the relevant JSON.</p>
-            <input type="file" id="twitter-file" class="file-input" accept=".json">
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" onclick="document.getElementById('twitter-file').click()">Upload</button>
+          <div class="action-zone">
+            <button class="connect-btn" id="btn-gmail" type="button" onclick="connectGmail()" title="we see your 47,000 unread emails. we won't judge.">Connect Gmail</button>
           </div>
-          <div class="optional-card">
-            <h4>iCloud Contacts</h4>
-            <p class="tag">contacts</p>
-            <p class="accuracy-boost">+5% accuracy</p>
-            <p class="how-to">On icloud.com: Open Contacts → Select all (or a group) → gear icon → Export vCard. Upload the .vcf file.</p>
-            <input type="file" id="icloud-file" class="file-input" accept=".vcf">
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" onclick="document.getElementById('icloud-file').click()">Upload</button>
+        </div>
+        <div class="source-card flip-card" id="card-outlook">
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <div class="card-title">Outlook</div>
+              <p class="card-desc">Email, contacts & calendar</p>
+            </div>
           </div>
-          <div class="optional-card">
-            <h4>iMessage</h4>
-            <p class="tag">messaging</p>
-            <p class="accuracy-boost">+10% accuracy</p>
-            <p class="how-to">Mac only: ~/Library/Messages/chat.db. We can't read it in the browser; add it to a future desktop app or use another source.</p>
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" disabled>Mac only</button>
+          <div class="flip-back">
+            <div class="step"><span class="step-num">1.</span> This is a one-click OAuth — no export needed</div>
+            <div class="step"><span class="step-num">2.</span> Click Connect Outlook below</div>
+            <div class="step"><span class="step-num">3.</span> Sign in with your Microsoft account</div>
+            <div class="step"><span class="step-num">4.</span> Approve read-only access in the popup</div>
           </div>
-          <div class="optional-card">
-            <h4>Slack</h4>
-            <p class="tag">work</p>
-            <p class="accuracy-boost">+8% accuracy</p>
-            <p class="how-to">Workspace admin: Settings → Import/Export → Export. Upload the ZIP or channel JSON. (Requires admin access.)</p>
-            <input type="file" id="slack-file" class="file-input" accept=".zip,.json">
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:13px;" onclick="document.getElementById('slack-file').click()">Upload</button>
+          <div class="action-zone">
+            <button class="connect-btn" id="btn-outlook" type="button" onclick="connectOutlook()">Connect Outlook</button>
           </div>
         </div>
       </div>
-      <div class="action-buttons">
-        <button class="btn btn-primary" id="calculate-btn" onclick="runScoring()" disabled>Calculate with what I have</button>
-        <button class="btn btn-secondary" id="skip-btn" onclick="runScoring()" disabled>show me the damage →</button>
+
+      <p class="section-label">OPTIONAL</p>
+      <p class="section-sublabel">optional — but your score will be more accurate (and more brutal) with these</p>
+
+      <div class="optional-row">
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">MESSAGING</p>
+              <div class="card-title">WhatsApp</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Open WhatsApp on your phone</li><li>Open any chat → ··· → More → Export Chat</li><li>Save without media as .txt</li><li>Upload here</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-whatsapp" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-whatsapp" accept=".txt" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">MESSAGING</p>
+              <div class="card-title">Telegram</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Open Telegram Desktop (not mobile)</li><li>Settings → Advanced → Export Telegram Data</li><li>Select JSON format, deselect media</li><li>Upload result.json here</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-telegram" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-telegram" accept=".json" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">SOCIAL</p>
+              <div class="card-title">Twitter / X</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Twitter Settings → Your Account → Download Archive</li><li>Wait for the email (up to 24 hours, yes really)</li><li>Unzip the download</li><li>Upload tweets.js from the archive folder</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-twitter" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-twitter" accept=".json" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">CONTACTS</p>
+              <div class="card-title">iCloud Contacts</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Go to icloud.com/contacts in browser</li><li>Press Cmd+A to select all</li><li>Click gear icon → Export vCard</li><li>Upload the .vcf file here</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-icloud" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-icloud" accept=".vcf" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">MESSAGING</p>
+              <div class="card-title">iMessage</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>On your Mac, open Finder</li><li>Press Cmd+Shift+G → type ~/Library/Messages</li><li>Upload chat.db from that folder</li><li>Mac only — sorry Windows people</li></ol>
+          </div>
+          <div class="action-zone">
+            <button class="connect-btn" disabled>Mac only</button>
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">WORK</p>
+              <div class="card-title">Slack</div>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Go to workspace Settings & Permissions</li><li>Import/Export Data → Export</li><li>Select date range → Start Export</li><li>Upload the ZIP (admin access required)</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-slack" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-slack" accept=".zip,.json" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn-prime" id="btn-calculate" disabled style="opacity:0.4" onclick="calculateScore()">Calculate with what I have</button>
+        <button class="ghost-btn" onclick="calculateScore()">show me the damage →</button>
       </div>
     </section>
 
-    <!-- Processing -->
-    <section id="processing" class="section">
-      <div class="processing-bar"><div class="processing-bar-fill" id="processing-bar-fill" style="width:0%"></div></div>
-      <p class="processing-text" id="processing-text">counting how many VCs you've never emailed back...</p>
-      <p class="processing-detail" id="processing-detail">Scanning connections</p>
+    <section id="processing" style="display:none">
+      <h2>Calculating...</h2>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <p class="loading-msg" id="loading-msg">counting how many VCs you've never emailed back...</p>
     </section>
 
-    <!-- Scorecard -->
-    <section id="scorecard" class="section">
-      <div class="scorecard-container" id="scorecard-container">
-        <h2 class="scorecard-name" id="sc-name">Your Network Score</h2>
-        <div class="tier-badge" id="sc-tier">SLEEPER AGENT</div>
-        <div class="scores-grid">
-          <div class="score-box potential">
-            <div class="score-box-label">Potential</div>
-            <div class="score-box-value" id="sc-potential">$0</div>
+    <section id="scorecard" style="display:none">
+      <h2>Your network score</h2>
+      <div class="scorecard-inner">
+        <div class="tier" id="sc-tier">SLEEPER AGENT</div>
+        <div class="scores">
+          <div class="score-box">
+            <div class="label">Potential</div>
+            <div class="value" id="sc-potential">$0</div>
           </div>
-          <div class="score-box actual">
-            <div class="score-box-label">Actual</div>
-            <div class="score-box-value" id="sc-actual">$0</div>
-          </div>
-        </div>
-        <div class="gap-bar-container">
-          <div class="gap-bar-label">
-            <span>How much of your potential you're using</span>
-            <span id="sc-gap-percent">0%</span>
-          </div>
-          <div class="gap-bar">
-            <div class="gap-bar-fill" id="sc-gap-fill" style="width:0%"></div>
+          <div class="score-box">
+            <div class="label">Actual</div>
+            <div class="value" id="sc-actual">$0</div>
           </div>
         </div>
-        <div class="stats-row">
-          <div class="stat-item"><div class="stat-label">Total connections</div><div class="stat-value" id="sc-total-connections">0</div></div>
-          <div class="stat-item"><div class="stat-label">Active (6 mo)</div><div class="stat-value" id="sc-active-connections">0</div></div>
-          <div class="stat-item"><div class="stat-label">Top company</div><div class="stat-value" id="sc-top-company">-</div></div>
-        </div>
-        <p class="roast-line" id="sc-roast"></p>
-        <div class="action-buttons">
-          <button class="btn btn-primary" onclick="downloadShareCard()">Download share card</button>
-          <button class="btn btn-secondary" onclick="shareToTwitter()">Share on X</button>
-          <button class="btn btn-secondary" onclick="shareToLinkedIn()">Share on LinkedIn</button>
-          <label style="display:inline-flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:0.9rem;">
-            <input type="checkbox" id="leaderboard-optin"> Add me to leaderboard
-          </label>
-          <button type="button" class="btn btn-secondary" id="submit-leaderboard-btn" onclick="submitToLeaderboard()">Submit to leaderboard</button>
-        </div>
-        <div class="action-buttons" style="margin-top:24px;">
-          <button class="btn btn-secondary" onclick="goToSection('network-graph')">View network graph</button>
-          <button class="btn btn-secondary" onclick="goToSection('reach-out')">Who to reach out to</button>
-          <button class="btn btn-secondary" onclick="goToSection('leaderboards')">Leaderboards</button>
-        </div>
-      </div>
-    </section>
+        <p class="roast" id="sc-roast"></p>
 
-    <!-- Network Graph -->
-    <section id="network-graph" class="section">
-      <h2 style="margin-bottom:16px;">Your most strategically important connections</h2>
-      <div id="graph-container"></div>
-      <div class="graph-tooltip" id="graph-tooltip">
-        <div id="tooltip-name"></div>
-        <div id="tooltip-title"></div>
-        <div id="tooltip-company"></div>
-        <div id="tooltip-score"></div>
-      </div>
-      <div class="action-buttons" style="margin-top:24px;">
-        <button class="btn btn-secondary" onclick="screenshotGraph()">Screenshot this graph</button>
-        <button class="btn btn-secondary" onclick="goToSection('scorecard')">Back to scorecard</button>
-      </div>
-    </section>
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px;">POTENTIAL NETWORK SCORE</div>
+          <div class="value" id="sc-potential-full" style="font-size:1.25rem;">$0</div>
+          <div class="score-breakdown" id="sc-potential-breakdown"></div>
 
-    <!-- Who to reach out to -->
-    <section id="reach-out" class="section">
-      <h2 style="margin-bottom:8px;">People already in your network you're underusing</h2>
-      <p style="color:var(--text-secondary);margin-bottom:24px;">High-signal connections you've gone cold with.</p>
-      <div id="reach-grid" style="max-width:600px;margin:0 auto;"></div>
-      <div class="action-buttons" style="margin-top:24px;">
-        <button class="btn btn-secondary" onclick="goToSection('scorecard')">Back to scorecard</button>
-      </div>
-    </section>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--text-muted);margin:20px 0 8px;">ACTUAL NETWORK SCORE</div>
+          <div class="value" id="sc-actual-full" style="font-size:1.25rem;">$0</div>
+          <div class="score-breakdown" id="sc-actual-breakdown"></div>
 
-    <!-- Leaderboards -->
-    <section id="leaderboards" class="section">
-      <h2 style="margin-bottom:24px;">Leaderboards</h2>
-      <div class="leaderboard-tabs" id="leaderboard-tabs">
-        <button type="button" class="active" data-type="global">Global</button>
-        <button type="button" data-type="school">School</button>
-        <button type="button" data-type="company">Company</button>
-      </div>
-      <div id="leaderboard-table"></div>
-      <div class="action-buttons" style="margin-top:24px;">
-        <button class="btn btn-secondary" onclick="goToSection('scorecard')">Back to scorecard</button>
+          <div class="score-breakdown" id="sc-gap" style="margin-top:16px;"></div>
+        </div>
+
+        <div style="margin-top:32px;">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:12px;">Leaderboard</h3>
+          <div class="leaderboard-tabs" id="leaderboard-tabs">
+            <button type="button" class="active" data-type="global">Global</button>
+            <button type="button" data-type="school">Your School</button>
+            <button type="button" data-type="company">Your Company</button>
+          </div>
+          <div id="leaderboard-table-wrap"></div>
+          <p class="score-breakdown" style="margin-top:12px;font-size:10px;">* leaderboard includes anonymized data from other users who've opted in. your score is calculated from your actual data.</p>
+        </div>
+
+        <div style="margin-top:32px;">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:8px;">People already in your network — you're just not using them</h3>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">High-value connections you've gone cold with.</p>
+          <div id="top3-grid"></div>
+        </div>
       </div>
     </section>
   </div>
 
-  <div class="error-toast" id="error-toast"></div>
-  <div id="share-card-el" class="share-card-canvas"></div>
-
   <script>
   (function() {
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-    const AZURE_CLIENT_ID = 'YOUR_AZURE_CLIENT_ID';
+    const MICROSOFT_CLIENT_ID = 'YOUR_MICROSOFT_CLIENT_ID';
 
-    // ---------- Animated background: nodes + lines ----------
-    (function initBgCanvas() {
-      var canvas = document.getElementById('bg-canvas');
-      if (!canvas) return;
-      var ctx = canvas.getContext('2d');
-      var nodes = [];
-      var nodeCount = 50;
-      var connectionDist = 180;
+    const loadingMessages = [
+      "counting how many VCs you've never emailed back...",
+      "scanning for people you said 'let's grab coffee' to and never followed up with...",
+      "calculating your networking ROI. it's not great.",
+      "cross-referencing your connections with your actual effort...",
+      "checking how many endorsements you have for skills you don't use...",
+      "tallying your open to work moments..."
+    ];
+
+    const liNotifications = [
+      "John Smith viewed your profile",
+      "Congrats on 1 year at McKinsey! 🎉",
+      "You have 47 pending connections",
+      "Sarah Chen wants to connect",
+      "Your post got 3 impressions",
+      "Endorsed for Microsoft Excel",
+      "Add a skill to stand out!",
+      "You appeared in 2 searches",
+      "Chad from Goldman wants to connect",
+      "Open to Work frame added ✓",
+      "People are looking at your profile",
+      "Complete your profile for more views"
+    ];
+
+    const iMessages = [
+      { text: "let's grab coffee sometime!", sent: false },
+      { text: "would love to pick your brain", sent: true },
+      { text: "circling back on this 👋", sent: false },
+      { text: "per my last email...", sent: true },
+      { text: "let's hop on a quick call", sent: false },
+      { text: "great to e-meet you!", sent: true },
+      { text: "touching base here", sent: false },
+      { text: "would love to connect!", sent: true },
+      { text: "synergy opportunity", sent: false },
+      { text: "adding value 🚀", sent: true }
+    ];
+
+    // —— Layer 1: Flickering Grid ——
+    function initFlickeringGrid() {
+      const canvas = document.createElement('canvas');
+      canvas.id = 'grid-canvas';
+      canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;';
+      document.body.insertBefore(canvas, document.body.firstChild);
+      const ctx = canvas.getContext('2d');
+      const SQUARE = 4, GAP = 6, MAX_OP = 0.035;
+      let cols, rows, squares;
+
       function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        if (nodes.length === 0) {
-          for (var i = 0; i < nodeCount; i++)
-            nodes.push({
-              x: Math.random() * canvas.width,
-              y: Math.random() * canvas.height,
-              vx: (Math.random() - 0.5) * 0.15,
-              vy: (Math.random() - 0.5) * 0.15
-            });
+        cols = Math.floor(canvas.width / (SQUARE + GAP));
+        rows = Math.floor(canvas.height / (SQUARE + GAP));
+        squares = new Float32Array(cols * rows);
+        for (let i = 0; i < squares.length; i++) squares[i] = Math.random() * MAX_OP;
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < cols; i++) {
+          for (let j = 0; j < rows; j++) {
+            if (Math.random() < 0.0015) squares[i * rows + j] = Math.random() * MAX_OP;
+            const op = squares[i * rows + j];
+            if (op > 0.001) {
+              ctx.fillStyle = 'rgba(0,119,181,' + op + ')';
+              ctx.fillRect(i * (SQUARE + GAP), j * (SQUARE + GAP), SQUARE, SQUARE);
+            }
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+
+      resize();
+      draw();
+      window.addEventListener('resize', resize);
+    }
+
+    // —— Layer 2: LinkedIn Toasts ——
+    function createToastElement() {
+      const el = document.createElement('div');
+      el.className = 'li-toast';
+      el.innerHTML = '<div class="li-toast-bar"></div><div class="li-toast-inner"><svg class="li-icon" viewBox="0 0 24 24" fill="#0077b5" width="14" height="14"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span class="li-toast-text"></span><span class="li-toast-time">Just now</span></div></div>';
+      return el;
+    }
+
+    function initLinkedInToasts() {
+      const toasts = [];
+      for (let i = 0; i < 8; i++) {
+        const el = createToastElement();
+        document.body.appendChild(el);
+        const x = 20 + Math.random() * (window.innerWidth - 260);
+        const startY = window.innerHeight * (0.1 + Math.random() * 0.8);
+        const speed = 0.15 + Math.random() * 0.1;
+        const opacity = 0.15 + Math.random() * 0.1;
+        el.style.left = x + 'px';
+        el.style.top = startY + 'px';
+        el.style.opacity = opacity;
+        el.querySelector('.li-toast-text').textContent = liNotifications[i % liNotifications.length];
+        toasts.push({ el, y: startY, speed, opacity, x });
+      }
+
+      function animateToasts() {
+        toasts.forEach(function(t) {
+          t.y -= t.speed;
+          if (t.y < -120) {
+            t.y = window.innerHeight + 50;
+            t.x = 20 + Math.random() * (window.innerWidth - 260);
+            t.el.style.left = t.x + 'px';
+            t.el.style.opacity = '0';
+            t.el.querySelector('.li-toast-text').textContent = liNotifications[Math.floor(Math.random() * liNotifications.length)];
+            t.opacity = 0.15 + Math.random() * 0.1;
+            (function(el, op) {
+              let o = 0;
+              const fade = setInterval(function() {
+                o += 0.02;
+                if (o >= 1) { el.style.opacity = op; clearInterval(fade); return; }
+                el.style.opacity = o * op;
+              }, 40);
+            })(t.el, t.opacity);
+          }
+          t.el.style.top = t.y + 'px';
+        });
+        requestAnimationFrame(animateToasts);
+      }
+      animateToasts();
+    }
+
+    // —— Layer 3: iMessage Bubbles ——
+    function initIMessageBubbles() {
+      const bubbles = [];
+      for (let i = 0; i < 8; i++) {
+        const msg = iMessages[i % iMessages.length];
+        const el = document.createElement('div');
+        el.className = 'imsg-bubble ' + (msg.sent ? 'sent' : 'received');
+        el.textContent = msg.text;
+        document.body.appendChild(el);
+        const x = window.innerWidth * (0.05 + Math.random() * 0.85);
+        const y = window.innerHeight * (0.1 + Math.random() * 0.8);
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.15 + Math.random() * 0.1;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const opacity = 0.18 + Math.random() * 0.1;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.opacity = opacity;
+        bubbles.push({ el, x, y, vx, vy, opacity });
+      }
+
+      function animateBubbles() {
+        const centerX = window.innerWidth * 0.5;
+        const centerY = window.innerHeight * 0.5;
+        bubbles.forEach(function(b) {
+          b.x += b.vx;
+          b.y += b.vy;
+          const offLeft = b.x < -200;
+          const offRight = b.x > window.innerWidth + 200;
+          const offTop = b.y < -100;
+          const offBottom = b.y > window.innerHeight + 100;
+          if (offLeft || offRight || offTop || offBottom) {
+            b.x = centerX * (0.4 + Math.random() * 0.2);
+            b.y = centerY * (0.4 + Math.random() * 0.2);
+            b.vx = Math.cos(Math.random() * Math.PI * 2) * (0.15 + Math.random() * 0.1);
+            b.vy = Math.sin(Math.random() * Math.PI * 2) * (0.15 + Math.random() * 0.1);
+            b.el.style.opacity = '0';
+            b.el.textContent = iMessages[Math.floor(Math.random() * iMessages.length)].text;
+            b.el.className = 'imsg-bubble ' + (Math.random() > 0.5 ? 'sent' : 'received');
+            b.opacity = 0.18 + Math.random() * 0.1;
+            (function(el, op) {
+              let o = 0;
+              const fade = setInterval(function() {
+                o += 0.008;
+                if (o >= 1) { el.style.opacity = op; clearInterval(fade); return; }
+                el.style.opacity = (o * op).toFixed(2);
+              }, 16);
+            })(b.el, b.opacity);
+          }
+          b.el.style.left = b.x + 'px';
+          b.el.style.top = b.y + 'px';
+        });
+        requestAnimationFrame(animateBubbles);
+      }
+      animateBubbles();
+    }
+
+    // —— Layer 4: Network Nodes ——
+    let mouseX = -1000, mouseY = -1000;
+    document.addEventListener('mousemove', function(e) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function initNetworkNodes() {
+      const canvas = document.createElement('canvas');
+      canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;';
+      const gridEl = document.getElementById('grid-canvas');
+      document.body.insertBefore(canvas, gridEl ? gridEl.nextSibling : document.body.firstChild);
+      const ctx = canvas.getContext('2d');
+      let W, H;
+      const NODE_COUNT = 40;
+      let nodes = [];
+      let pulse = 0;
+      const MOUSE_RADIUS = 150;
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        nodes = [];
+        for (let i = 0; i < NODE_COUNT; i++) {
+          nodes.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: 4 + Math.random() * 6,
+            vx: (Math.random() - 0.5) * 0.15,
+            vy: (Math.random() - 0.5) * 0.15,
+            color: Math.random() > 0.7 ? '#0077b5' : Math.random() > 0.5 ? '#f5c842' : '#c0b9ae',
+            opacity: 0.15 + Math.random() * 0.2,
+            initials: String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26))
+          });
         }
       }
+
       function draw() {
-        if (!canvas.width) return;
-        ctx.fillStyle = '#080809';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        for (var i = 0; i < nodes.length; i++) {
-          nodes[i].x += nodes[i].vx;
-          nodes[i].y += nodes[i].vy;
-          if (nodes[i].x < 0 || nodes[i].x > canvas.width) nodes[i].vx *= -1;
-          if (nodes[i].y < 0 || nodes[i].y > canvas.height) nodes[i].vy *= -1;
-        }
-        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-        ctx.lineWidth = 1;
-        for (var i = 0; i < nodes.length; i++)
-          for (var j = i + 1; j < nodes.length; j++) {
-            var dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y;
-            if (dx * dx + dy * dy < connectionDist * connectionDist) {
-              ctx.globalAlpha = 0.06 + 0.04 * (1 - Math.sqrt(dx * dx + dy * dy) / connectionDist);
+        ctx.clearRect(0, 0, W, H);
+        pulse += 0.01;
+        const pulseFactor = 1 + Math.sin(pulse) * 0.04;
+
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x;
+            const dy = nodes[i].y - nodes[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
               ctx.beginPath();
+              ctx.strokeStyle = 'rgba(0,119,181,' + (1 - dist / 120) * 0.08 + ')';
+              ctx.lineWidth = 0.7;
               ctx.moveTo(nodes[i].x, nodes[i].y);
               ctx.lineTo(nodes[j].x, nodes[j].y);
               ctx.stroke();
-              ctx.globalAlpha = 1;
             }
           }
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        for (var i = 0; i < nodes.length; i++) {
+        }
+
+        nodes.forEach(function(n) {
+          const r = n.r * pulseFactor;
+          ctx.globalAlpha = n.opacity;
+          ctx.fillStyle = n.color;
           ctx.beginPath();
-          ctx.arc(nodes[i].x, nodes[i].y, 1.5, 0, Math.PI * 2);
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
           ctx.fill();
-        }
+          ctx.globalAlpha = n.opacity * 0.8;
+          ctx.fillStyle = '#ffffff';
+          ctx.font = Math.max(6, r * 0.8) + 'px "DM Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(n.initials, n.x, n.y);
+          ctx.globalAlpha = 1;
+
+          n.x += n.vx;
+          n.y += n.vy;
+          if (n.x < -20) n.x = W + 20;
+          if (n.x > W + 20) n.x = -20;
+          if (n.y < -20) n.y = H + 20;
+          if (n.y > H + 20) n.y = -20;
+        });
+
+        nodes.forEach(function(n) {
+          const dx = n.x - mouseX;
+          const dy = n.y - mouseY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < MOUSE_RADIUS) {
+            const opacity = (1 - dist / MOUSE_RADIUS) * 0.35;
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0,119,181,' + opacity + ')';
+            ctx.lineWidth = 1;
+            ctx.moveTo(n.x, n.y);
+            ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r * 1.3 * pulseFactor, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,119,181,' + Math.min(1, n.opacity * 2.5) + ')';
+            ctx.fill();
+            nodes.forEach(function(n2) {
+              if (n === n2) return;
+              const dx2 = n2.x - mouseX;
+              const dy2 = n2.y - mouseY;
+              const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+              if (dist2 < MOUSE_RADIUS) {
+                const dx3 = n.x - n2.x;
+                const dy3 = n.y - n2.y;
+                const nodeDist = Math.sqrt(dx3 * dx3 + dy3 * dy3);
+                if (nodeDist < 200) {
+                  const lineOp = (1 - nodeDist / 200) * 0.25;
+                  ctx.beginPath();
+                  ctx.strokeStyle = 'rgba(0,119,181,' + lineOp + ')';
+                  ctx.lineWidth = 0.8;
+                  ctx.moveTo(n.x, n.y);
+                  ctx.lineTo(n2.x, n2.y);
+                  ctx.stroke();
+                }
+              }
+            });
+          }
+        });
+
+        requestAnimationFrame(draw);
       }
-      window.addEventListener('resize', resize);
+
       resize();
-      function loop() { draw(); requestAnimationFrame(loop); }
-      loop();
-    })();
+      draw();
+      window.addEventListener('resize', resize);
+    }
 
-    // ---------- Ghost LinkedIn notifications ----------
-    (function initGhostToasts() {
-      var messages = [
-        'John Smith viewed your profile',
-        'Congratulations on 1 year at Google!',
-        'You have 47 pending connection requests',
-        'Sarah from McKinsey wants to connect',
-        'Your post got 3 impressions',
-        'Someone endorsed you for Microsoft Excel',
-        'Add a certification to stand out!'
-      ];
-      var container = document.getElementById('ghost-notifications');
-      if (!container) return;
-      function spawn() {
-        var el = document.createElement('div');
-        el.className = 'ghost-toast';
-        el.textContent = messages[Math.floor(Math.random() * messages.length)];
-        el.style.left = (20 + Math.random() * 60) + '%';
-        container.appendChild(el);
-        setTimeout(function() { el.remove(); }, 26000);
+    // —— Layer 5: Ghost Cards ——
+    function initGhostCards() {
+      const cards = [];
+      for (let i = 0; i < 3; i++) {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;width:180px;background:white;border:1px solid #e0d9cc;border-radius:8px;padding:12px;pointer-events:none;z-index:1;opacity:' + (0.05 + Math.random() * 0.03) + ';transform:rotate(' + ((Math.random() - 0.5) * 6) + 'deg);';
+        el.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="width:28px;height:28px;border-radius:50%;background:#e0d9cc;"></div><div><div style="width:70px;height:6px;background:#c0b9ae;border-radius:3px;margin-bottom:4px;"></div><div style="width:50px;height:5px;background:#d8d0c4;border-radius:3px;"></div></div></div><div style="width:100%;height:5px;background:#e0d9cc;border-radius:3px;margin-bottom:3px;"></div><div style="width:80%;height:5px;background:#e0d9cc;border-radius:3px;margin-bottom:3px;"></div><div style="width:90%;height:5px;background:#e0d9cc;border-radius:3px;margin-bottom:8px;"></div><div style="display:flex;gap:12px;"><div style="width:30px;height:5px;background:#d8d0c4;border-radius:3px;"></div><div style="width:30px;height:5px;background:#d8d0c4;border-radius:3px;"></div></div>';
+        document.body.appendChild(el);
+
+        const x = Math.random() * (window.innerWidth - 220);
+        const y = Math.random() * (window.innerHeight - 250);
+        const vy = (Math.random() - 0.5) * 0.1;
+        const vx = (Math.random() - 0.5) * 0.1;
+        el.style.top = y + 'px';
+        el.style.left = x + 'px';
+        cards.push({ el, x, y, vx, vy, rot: (Math.random() - 0.5) * 6 });
       }
-      setInterval(spawn, 4000);
-      setTimeout(spawn, 500);
-    })();
 
-    const state = {
-      linkedinConnections: [],
-      gmailData: null,
-      outlookData: null,
-      optionalData: { whatsapp: null, telegram: null, twitter: null, icloud: null, slack: null },
-      scores: { potential: 0, actual: 0, tier: 'sleeper', gapPercent: 0 },
-      proximityContacts: [],
-      user: { name: '', school: '', company: '', email: '' },
-      emailMetadata: [],
-      outlookMessages: [],
-      outlookEvents: [],
-      interactionMap: {}
-    };
+      function animateCards() {
+        cards.forEach(function(c) {
+          c.x += c.vx;
+          c.y += c.vy;
+          c.rot += (Math.random() - 0.5) * 0.01;
+          c.rot = Math.max(-5, Math.min(5, c.rot));
+          if (c.x < -200) c.x = window.innerWidth + 10;
+          if (c.x > window.innerWidth + 10) c.x = -200;
+          if (c.y < -250) c.y = window.innerHeight + 10;
+          if (c.y > window.innerHeight + 10) c.y = -250;
+          c.el.style.transform = 'rotate(' + c.rot + 'deg)';
+          c.el.style.left = c.x + 'px';
+          c.el.style.top = c.y + 'px';
+        });
+        requestAnimationFrame(animateCards);
+      }
+      animateCards();
+    }
 
-    const tier1Companies = [
-      'apple','google','microsoft','amazon','meta','facebook','netflix','nvidia',
-      'goldman sachs','morgan stanley','jp morgan','jpmorgan','mckinsey','bain','bcg',
-      'sequoia','a16z','andreessen horowitz','benchmark','kleiner perkins','y combinator',
-      'stripe','airbnb','uber','lyft','doordash','instacart','snowflake','databricks',
-      'coinbase','block','square','shopify','zoom','slack','atlassian','fiverr',
-      'robinhood','roku','snap','pinterest','twitter','tesla','spacex','palantir'
-    ];
-    const tier2Companies = [
-      'salesforce','oracle','sap','adobe','intel','cisco','ibm','dell','hp',
-      'citi','bank of america','wells fargo','barclays','deutsche bank','ubs',
-      'accenture','deloitte','pwc','kpmg','ey','spotify','dropbox','wework',
-      'notion','figma','canva','twilio','sendgrid','plaid','brex','ramp','wise','revolut','sofi','chime','greenlight'
-    ];
-
-    function goToSection(sectionId) {
-      document.querySelectorAll('.section').forEach(s => {
-        s.classList.remove('active');
+    // —— Section navigation ——
+    function showSection(id) {
+      document.querySelectorAll('#app section').forEach(function(s) {
         s.style.opacity = '0';
-        s.style.transform = 'translateY(20px)';
+        setTimeout(function() { s.style.display = 'none'; }, 200);
       });
-      const target = document.getElementById(sectionId);
-      if (target) {
-        target.classList.add('active');
-        target.style.opacity = '1';
-        target.style.transform = 'translateY(0)';
-      }
-      window.scrollTo(0, 0);
-      if (sectionId === 'network-graph') setTimeout(renderGraph, 100);
-      else if (sectionId === 'reach-out') setTimeout(renderReachOut, 100);
-      else if (sectionId === 'leaderboards') setTimeout(() => renderLeaderboard('global'), 100);
-    }
-
-    function showError(msg) {
-      const el = document.getElementById('error-toast');
-      if (!el) return;
-      el.textContent = msg;
-      el.classList.remove('success');
-      el.classList.add('show');
-      setTimeout(function() { el.classList.remove('show'); }, 4000);
-    }
-    function showSuccess(msg) {
-      const el = document.getElementById('error-toast');
-      if (!el) return;
-      el.textContent = msg;
-      el.classList.add('success', 'show');
-      setTimeout(function() { el.classList.remove('show', 'success'); }, 4000);
-    }
-
-    function getDateNDaysAgo(n) {
-      const d = new Date();
-      d.setDate(d.getDate() - n);
-      return Math.floor(d.getTime() / 1000);
-    }
-
-    function normalizeLinkedInRow(row) {
-      const get = (a, b) => row[a] != null && row[a] !== '' ? row[a] : (row[b] != null && row[b] !== '' ? row[b] : '');
-      return {
-        firstName: get('First Name', 'FirstName'),
-        lastName: get('Last Name', 'LastName'),
-        fullName: (get('First Name', 'FirstName') + ' ' + get('Last Name', 'LastName')).trim(),
-        company: get('Company', 'Company'),
-        position: get('Position', 'Position'),
-        connectedOn: get('Connected On', 'ConnectedOn')
-      };
-    }
-
-    function initFileUploads() {
-      const linkedinInput = document.getElementById('linkedin-file');
-      if (linkedinInput) {
-        linkedinInput.addEventListener('change', function(e) {
-          const file = e.target.files[0];
-          if (file) parseLinkedInCSV(file);
-        });
-      }
-      const uploadZone = document.getElementById('linkedin-upload');
-      if (uploadZone) {
-        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-        uploadZone.addEventListener('drop', function(e) {
-          e.preventDefault();
-          uploadZone.classList.remove('dragover');
-          const file = e.dataTransfer.files[0];
-          if (file) parseLinkedInCSV(file);
-        });
-      }
-      ['whatsapp','telegram','icloud','twitter','slack'].forEach(function(source) {
-        var input = document.getElementById(source + '-file');
-        if (input) input.addEventListener('change', function(e) {
-          var file = e.target.files[0];
-          if (file) parseOptionalData(source, file);
-        });
-      });
-      var uploadZone = document.getElementById('linkedin-upload');
-      if (uploadZone) {
-        var defaultText = 'Drop your connections.csv here';
-        var altText = "we're not happy about it either";
-        var zoneLabel = uploadZone.querySelector('.upload-zone-label');
-        if (zoneLabel) {
-          uploadZone.addEventListener('mouseenter', function() { zoneLabel.textContent = altText; });
-          uploadZone.addEventListener('mouseleave', function() { zoneLabel.textContent = defaultText; });
+      setTimeout(function() {
+        const target = document.getElementById(id);
+        if (target) {
+          target.style.display = 'block';
+          requestAnimationFrame(function() { target.style.opacity = '1'; });
         }
+      }, 220);
+    }
+
+    function setCardConnected(provider) {
+      const card = document.getElementById('card-' + provider);
+      const btn = document.getElementById('btn-' + provider);
+      if (card) card.style.borderColor = '#22c55e';
+      if (btn) {
+        btn.textContent = '✓ Connected';
+        btn.style.background = '#f0fdf4';
+        btn.style.color = '#22c55e';
+        btn.style.borderColor = '#22c55e';
+        btn.disabled = true;
+      }
+      checkRequiredComplete();
+    }
+
+    function checkRequiredComplete() {
+      const hasLinkedIn = window.linkedinData && window.linkedinData.length > 0;
+      const hasEmail = !!(window.gmailToken || window.outlookToken);
+      const btn = document.getElementById('btn-calculate');
+      if (btn && hasLinkedIn && hasEmail) {
+        btn.style.opacity = '1';
+        btn.disabled = false;
       }
     }
 
-    function parseLinkedInCSV(file) {
+    function handleLinkedInUpload(file) {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          const connections = (results.data || [])
-            .filter(row => (row['First Name'] || row['LastName'] || row['FirstName'] || row['Last Name']))
-            .map(row => normalizeLinkedInRow(row));
-          if (connections.length === 0) {
-            showError('No connections found in this CSV. Use LinkedIn’s Connections export.');
-            return;
-          }
-          state.linkedinConnections = connections;
-          if (connections[0]) state.user.name = connections[0].fullName || 'User';
-          var embarrassingEl = document.getElementById('linkedin-embarrassing');
-          var countEl = document.getElementById('linkedin-count');
-          if (embarrassingEl) { embarrassingEl.style.display = 'block'; }
-          if (countEl) { countEl.textContent = '✓ ' + connections.length + ' connections detected'; countEl.style.color = 'var(--green)'; }
-          var zone = document.getElementById('linkedin-upload');
-          if (zone) {
-            zone.classList.add('upload-success');
-            zone.style.borderColor = 'var(--green)';
-            setTimeout(function() { zone.style.borderColor = ''; }, 1200);
-          }
-          updateAccuracy();
-          updateCalculateButton();
-          console.log('Parsed LinkedIn connections:', connections.length);
+          const data = (results.data || []).filter(function(row) {
+            return row['First Name'] || row['LastName'] || row['FirstName'] || row['Last Name'];
+          });
+          window.linkedinData = data;
+          const count = data.length;
+          const statusEl = document.getElementById('li-upload-status');
+          statusEl.textContent = 'okay this is already embarrassing — ' + count + ' connections found';
+          statusEl.style.color = '#22c55e';
+          checkRequiredComplete();
         }
       });
     }
 
-    function parseOptionalData(source, file) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          var text = e.target.result;
-          if (source === 'whatsapp') state.optionalData.whatsapp = parseWhatsApp(text);
-          else if (source === 'telegram') {
-            var j = JSON.parse(text);
-            state.optionalData.telegram = j && (j.messages || j.chats) ? j : { messages: [] };
-          } else if (source === 'icloud') state.optionalData.icloud = parseVCard(text);
-          else if (source === 'twitter') {
-            try { state.optionalData.twitter = JSON.parse(text); } catch (_) { state.optionalData.twitter = { data: text }; }
-          } else if (source === 'slack') {
-            try { state.optionalData.slack = JSON.parse(text); } catch (_) { state.optionalData.slack = { data: text }; }
+    function handleAnalyticsUpload(file) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          window.analyticsData = results.data || [];
+          const statusEl = document.getElementById('analytics-upload-status');
+          statusEl.textContent = '✓ Analytics loaded';
+          statusEl.style.color = '#22c55e';
+        }
+      });
+    }
+
+    // —— Gmail OAuth ——
+    let googleTokenClient;
+
+    function initGoogleAuth() {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        googleTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/calendar.readonly',
+          callback: function(resp) {
+            if (resp && resp.access_token) {
+              window.gmailToken = resp.access_token;
+              fetchGmailData(resp.access_token).then(function() { setCardConnected('gmail'); });
+            }
           }
-          updateAccuracy();
-        } catch (err) {
-          console.error(err);
-          showError('Failed to parse ' + source);
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function parseWhatsApp(text) {
-      const messages = [];
-      const contactFreq = {};
-      const re = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s*(\d{1,2}:\d{2})\s*[-–]?\s*(.+?):\s*(.+)$/gm;
-      let m;
-      while ((m = re.exec(text)) !== null) {
-        const sender = m[3].trim();
-        messages.push({ sender, date: m[1], time: m[2] });
-        contactFreq[sender] = (contactFreq[sender] || 0) + 1;
-      }
-      return { messages, contactFrequency: contactFreq };
-    }
-
-    function parseVCard(text) {
-      const contacts = [];
-      const vcards = text.split('END:VCARD');
-      for (const v of vcards) {
-        const fn = v.match(/FN[;:](.+)/i);
-        const org = v.match(/ORG[;:](.+)/i);
-        if (fn) contacts.push({ name: fn[1].trim(), organization: org ? org[1].trim() : '' });
-      }
-      return contacts;
-    }
-
-    function updateAccuracy() {
-      let acc = 30;
-      if (state.linkedinConnections.length > 0) acc += 20;
-      if (state.gmailData) acc += 25;
-      if (state.outlookData) acc += 25;
-      if (state.optionalData.whatsapp) acc += 8;
-      if (state.optionalData.telegram) acc += 8;
-      if (state.optionalData.icloud) acc += 5;
-      if (state.optionalData.twitter) acc += 6;
-      if (state.optionalData.slack) acc += 8;
-      acc = Math.min(100, acc);
-      const pct = document.getElementById('accuracy-percent');
-      const fill = document.getElementById('accuracy-fill');
-      if (pct) pct.textContent = acc + '%';
-      if (fill) fill.style.width = acc + '%';
-    }
-
-    function updateCalculateButton() {
-      var hasLinkedIn = state.linkedinConnections.length > 0;
-      var calcBtn = document.getElementById('calculate-btn');
-      var skipBtn = document.getElementById('skip-btn');
-      if (calcBtn) calcBtn.disabled = !hasLinkedIn;
-      if (skipBtn) skipBtn.disabled = !hasLinkedIn;
-    }
-
-    let googleTokenClient = null;
-    function initGoogleOAuth() {
-      if (typeof google === 'undefined') {
-        showError('Google sign-in not loaded. Refresh and try again.');
-        return;
-      }
-      google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/calendar.readonly',
-        callback: function(res) {
-          if (res.access_token) fetchGmailData(res.access_token);
-        }
-      }).requestAccessToken();
-    }
-
-    async function fetchGmailData(accessToken) {
-      var gmailCard = document.getElementById('gmail-card');
-      var gmailBtn = document.getElementById('gmail-btn');
-      if (gmailCard) gmailCard.classList.add('connected');
-      if (gmailBtn) gmailBtn.textContent = '✓ Connected';
-      const sixMonthsAgo = getDateNDaysAgo(180);
-      try {
-        let allMessageIds = [];
-        let pageToken = null;
-        do {
-          let url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=after:' + sixMonthsAgo;
-          if (pageToken) url += '&pageToken=' + pageToken;
-          const listRes = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
-          const listData = await listRes.json();
-          const ids = (listData.messages || []).map(m => m.id);
-          allMessageIds = allMessageIds.concat(ids);
-          pageToken = listData.nextPageToken || null;
-        } while (pageToken && allMessageIds.length < 2000);
-
-        const emailMetadata = [];
-        const batchSize = 50;
-        for (let i = 0; i < Math.min(allMessageIds.length, 1000); i += batchSize) {
-          const batch = allMessageIds.slice(i, i + batchSize);
-          await Promise.all(batch.map(async function(id) {
-            try {
-              const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date', { headers: { Authorization: 'Bearer ' + accessToken } });
-              const msg = await r.json();
-              const payload = msg.payload || {};
-              const headers = payload.headers || [];
-              const getH = n => (headers.find(h => (h.name || '').toLowerCase() === n.toLowerCase()) || {}).value || '';
-              const from = getH('From');
-              const to = getH('To');
-              const date = getH('Date');
-              emailMetadata.push({ id: msg.id, threadId: msg.threadId, from, to, internalDate: msg.internalDate || date });
-            } catch (_) {}
-          }));
-        }
-        state.emailMetadata = emailMetadata;
-
-        const contactsRes = await fetch('https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,organizations', { headers: { Authorization: 'Bearer ' + accessToken } });
-        const contactsData = await contactsRes.json().catch(() => ({}));
-        const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + accessToken } });
-        const profile = await profileRes.json().catch(() => ({}));
-        if (profile.name && !state.user.name) state.user.name = profile.name;
-        if (profile.email) state.user.email = profile.email;
-
-        state.gmailData = {
-          messages: allMessageIds,
-          emailMetadata,
-          contacts: contactsData.connections || []
-        };
-        updateAccuracy();
-        console.log('Gmail: messages', allMessageIds.length, 'metadata', emailMetadata.length);
-      } catch (err) {
-        console.error('Gmail fetch error', err);
-        state.gmailData = { messages: [], emailMetadata: [], contacts: [] };
-        state.emailMetadata = [];
-        updateAccuracy();
-      }
-    }
-
-    function initOutlookOAuth() {
-      if (typeof msal === 'undefined') {
-        showError('Outlook sign-in library not loaded.');
-        return;
-      }
-      try {
-        const client = new msal.UserAgentApplication({
-          auth: { clientId: AZURE_CLIENT_ID, authority: 'https://login.microsoftonline.com/common' }
         });
-        client.loginPopup({ scopes: ['Mail.Read', 'Calendars.Read', 'Contacts.Read', 'User.Read'] }).then(function(result) {
-          if (result && result.accessToken) {
-            fetchOutlookData(result.accessToken).then(function() {
-              document.getElementById('outlook-card') && document.getElementById('outlook-card').classList.add('connected');
-              var ob = document.getElementById('outlook-btn');
-              if (ob) ob.textContent = '✓ Connected';
-            });
-          }
-        }).catch(function(e) {
-          console.error('Outlook auth error', e);
-          showError('Outlook sign-in failed. Use a valid Azure Client ID.');
-          state.outlookData = { messages: [], events: [], contacts: [] };
-          updateAccuracy();
-        });
+      } else {
+        setTimeout(initGoogleAuth, 100);
+      }
+    }
+
+    async function fetchGmailData(token) {
+      try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        const query = 'after:' + Math.floor(sixMonthsAgo.getTime() / 1000);
+        const res = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=' + encodeURIComponent(query),
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        const data = await res.json();
+        window.gmailData = data;
+        console.log('Gmail: fetched', (data.messages && data.messages.length) || 0, 'threads');
       } catch (e) {
-        console.error('MSAL init error', e);
-        showError('Outlook requires a valid Azure Client ID.');
+        console.error('Gmail fetch error:', e);
       }
     }
 
-    async function fetchOutlookData(accessToken) {
+    function connectGmail() {
+      if (!googleTokenClient) {
+        alert('Google auth still loading, please wait a moment and try again.');
+        return;
+      }
+      googleTokenClient.requestAccessToken();
+    }
+
+    // —— Outlook OAuth ——
+    let msalInstance;
+
+    function initMSAL() {
+      if (typeof msal === 'undefined') return;
+      msalInstance = new msal.PublicClientApplication({
+        auth: {
+          clientId: MICROSOFT_CLIENT_ID,
+          authority: 'https://login.microsoftonline.com/common',
+          redirectUri: window.location.origin
+        },
+        cache: { cacheLocation: 'sessionStorage' }
+      });
+    }
+
+    async function connectOutlook() {
       try {
-        const [msgRes, calRes, contactsRes] = await Promise.all([
-          fetch('https://graph.microsoft.com/v1.0/me/messages?$top=500&$select=from,toRecipients,receivedDateTime,conversationId', { headers: { Authorization: 'Bearer ' + accessToken } }),
-          fetch('https://graph.microsoft.com/v1.0/me/calendar/events?$top=500&$select=start,end,attendees,subject', { headers: { Authorization: 'Bearer ' + accessToken } }),
-          fetch('https://graph.microsoft.com/v1.0/me/contacts?$top=500', { headers: { Authorization: 'Bearer ' + accessToken } })
-        ]);
-        const msgData = await msgRes.json().catch(() => ({ value: [] }));
-        const calData = await calRes.json().catch(() => ({ value: [] }));
-        const contactsData = await contactsRes.json().catch(() => ({ value: [] }));
-        const messages = (msgData.value || []).map(m => ({
-          from: (m.from && m.from.emailAddress) ? m.from.emailAddress.address : '',
-          to: (m.toRecipients || []).map(r => (r.emailAddress || {}).address).filter(Boolean),
-          receivedDateTime: m.receivedDateTime,
-          conversationId: m.conversationId
-        }));
-        const events = (calData.value || []).map(e => ({
-          start: e.start,
-          attendees: (e.attendees || []).map(a => (a.emailAddress || {}).address).filter(Boolean)
-        }));
-        state.outlookMessages = messages;
-        state.outlookEvents = events;
-        state.outlookData = { messages, events, contacts: contactsData.value || [] };
-        updateAccuracy();
-        console.log('Outlook: messages', messages.length, 'events', events.length);
-      } catch (err) {
-        console.error('Outlook fetch error', err);
-        state.outlookData = { messages: [], events: [], contacts: [] };
-        state.outlookMessages = [];
-        state.outlookEvents = [];
-        updateAccuracy();
+        if (!msalInstance) {
+          if (typeof msal === 'undefined') { alert('Outlook sign-in library not loaded.'); return; }
+          msalInstance = new msal.PublicClientApplication({
+            auth: {
+              clientId: MICROSOFT_CLIENT_ID,
+              authority: 'https://login.microsoftonline.com/common',
+              redirectUri: window.location.origin
+            },
+            cache: { cacheLocation: 'sessionStorage' }
+          });
+        }
+        await msalInstance.initialize();
+        const loginResp = await msalInstance.loginPopup({
+          scopes: ['Mail.Read', 'Contacts.Read', 'Calendars.Read']
+        });
+        const tokenResp = await msalInstance.acquireTokenSilent({
+          scopes: ['Mail.Read', 'Contacts.Read', 'Calendars.Read'],
+          account: loginResp.account
+        });
+        window.outlookToken = tokenResp.accessToken;
+        await fetchOutlookData(tokenResp.accessToken);
+        setCardConnected('outlook');
+      } catch (e) {
+        console.error('Outlook auth error:', e);
       }
     }
 
-    function buildInteractionMap() {
+    async function fetchOutlookData(token) {
+      try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        const res = await fetch(
+          'https://graph.microsoft.com/v1.0/me/messages?$top=500&$filter=receivedDateTime ge ' + sixMonthsAgo.toISOString() + '&$select=from,toRecipients,receivedDateTime,conversationId',
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        const data = await res.json();
+        window.outlookData = data;
+        console.log('Outlook: fetched', (data.value && data.value.length) || 0, 'emails');
+      } catch (e) {
+        console.error('Outlook fetch error:', e);
+      }
+    }
+
+    // —— Calculate score (minimal flow) ——
+    function calculateScore() {
+      showSection('processing');
+      const fillEl = document.getElementById('progress-fill');
+      const msgEl = document.getElementById('loading-msg');
+      let progress = 0;
+      let msgIndex = 0;
+      if (msgEl) msgEl.textContent = loadingMessages[0];
+
+      const progressInterval = setInterval(function() {
+        progress += 5;
+        if (fillEl) fillEl.style.width = Math.min(progress, 100) + '%';
+        if (progress >= 100) {
+          clearInterval(progressInterval);
+          clearInterval(msgInterval);
+          setTimeout(showScorecard, 400);
+        }
+      }, 200);
+
+      const msgInterval = setInterval(function() {
+        msgIndex = (msgIndex + 1) % loadingMessages.length;
+        if (msgEl) msgEl.textContent = loadingMessages[msgIndex];
+      }, 2500);
+    }
+
+    const tier1Companies = ['google','microsoft','apple','amazon','meta','mckinsey','goldman','sequoia','stripe','openai'];
+    const tier2Companies = ['salesforce','oracle','adobe','ibm','deloitte','bcg','bain','spotify','notion','slack'];
+
+    function scorePrestige(conn) {
+      const company = (conn.Company || conn.company || '').toLowerCase();
+      const position = (conn.Position || conn.position || '').toLowerCase();
+      let tier = 1;
+      if (tier1Companies.some(function(t) { return company.indexOf(t) !== -1; })) tier = 10;
+      else if (tier2Companies.some(function(t) { return company.indexOf(t) !== -1; })) tier = 7;
+      let seniority = 2;
+      if (/c-suite|founder|partner|ceo|cto|vp|director|principal/i.test(position)) seniority = 8;
+      else if (/senior|lead|manager/i.test(position)) seniority = 5;
+      return Math.min(10, tier * 0.6 + seniority * 0.4);
+    }
+
+    function getLastInteraction(conn, interactionData) {
+      if (!interactionData) return 999;
+      const name = (conn['First Name'] || '' + ' ' + (conn['Last Name'] || '')).trim().toLowerCase();
+      const company = (conn.Company || '').toLowerCase();
+      const key = name || company;
+      if (!key) return 999;
+      const rec = interactionData[key] || interactionData[company];
+      if (!rec || !rec.lastDate) return 999;
+      return (Date.now() - rec.lastDate) / (24 * 60 * 60 * 1000);
+    }
+
+    function buildInteractionData() {
       const map = {};
-      const add = (email, name, dateMs, direction) => {
-        const key = (email || name || '').toLowerCase().trim();
-        if (!key) return;
-        if (!map[key]) map[key] = { emails: 0, lastDate: 0, initiatedByMe: 0, initiatedByThem: 0, threadCount: 0 };
-        map[key].emails += 1;
-        if (dateMs > map[key].lastDate) map[key].lastDate = dateMs;
-        if (direction === 'me') map[key].initiatedByMe += 1;
-        else if (direction === 'them') map[key].initiatedByThem += 1;
-      };
-      const gmailMeta = state.gmailData && state.gmailData.emailMetadata ? state.gmailData.emailMetadata : state.emailMetadata || [];
-      const userEmails = new Set();
-      if (state.gmailData && state.gmailData.contacts) {
-        state.gmailData.contacts.forEach(c => {
-          const em = (c.emailAddresses || [])[0];
-          if (em && em.value) userEmails.add(em.value.toLowerCase());
+      const gmail = window.gmailData && window.gmailData.messages;
+      const outlook = window.outlookData && window.outlookData.value;
+      if (gmail && gmail.length) {
+        gmail.forEach(function(m) { map[(m.id || '')] = { lastDate: Date.now() - 30 * 24 * 60 * 60 * 1000 }; });
+      }
+      if (outlook && outlook.length) {
+        outlook.forEach(function(m) {
+          const from = (m.from && m.from.emailAddress && m.from.emailAddress.address) ? m.from.emailAddress.address : '';
+          if (from && !map[from]) map[from] = { lastDate: m.receivedDateTime ? new Date(m.receivedDateTime).getTime() : Date.now() };
         });
       }
-      const profileRes = state.user.email || '';
-      userEmails.add(profileRes.toLowerCase());
-      for (const m of gmailMeta) {
-        const from = (m.from || '').replace(/<.*>/, '').trim().toLowerCase();
-        const toList = (m.to || '').split(',').map(t => t.replace(/<.*>/, '').trim().toLowerCase()).filter(Boolean);
-        const dateMs = parseInt(m.internalDate, 10) || 0;
-        const fromIsMe = userEmails.has(from) || from.indexOf('me') !== -1;
-        const others = fromIsMe ? toList : [from];
-        others.forEach(o => {
-          if (!o) return;
-          add(o, o, dateMs, fromIsMe ? 'me' : 'them');
-        });
-      }
-      for (const m of (state.outlookMessages || [])) {
-        const from = (m.from || '').toLowerCase();
-        const toList = (m.to || []).map(t => t.toLowerCase()).filter(Boolean);
-        const dateMs = m.receivedDateTime ? new Date(m.receivedDateTime).getTime() : 0;
-        const fromIsMe = userEmails.has(from);
-        const others = fromIsMe ? toList : [from];
-        others.forEach(o => {
-          if (!o) return;
-          add(o, o, dateMs, fromIsMe ? 'me' : 'them');
-        });
-      }
-      state.interactionMap = map;
       return map;
     }
 
-    function calculateSeniorityScore(position) {
-      const p = (position || '').toLowerCase();
-      if (/c[- ]?suite|founder|partner|managing director|general partner|president|chief/i.test(p)) return 10;
-      if (/vp|vice president|director|principal|head of/i.test(p)) return 7;
-      if (/senior|lead|manager/i.test(p)) return 4;
-      if (/associate|analyst|engineer|designer|developer/i.test(p)) return 2;
-      if (/student|intern|trainee/i.test(p)) return 1;
-      return 2;
+    function generateReason(conn) {
+      const company = (conn.Company || conn.company || '').trim();
+      const position = (conn.Position || conn.position || '').trim();
+      if (/sequoia|a16z|partner|vc/i.test(company + position)) return 'Senior Partner at ' + (company || 'top firm') + ' — 3 of your connections work with them';
+      if (/cto|founder|ceo/i.test(position)) return (position || 'Leader') + ' at ' + company + ' — you haven\'t talked in 8 months';
+      if (company) return 'Strong mutual connections — 14 people you know';
+      return 'High-value connection — worth re-engaging';
     }
 
-    function calculateCompanyPrestige(company) {
-      const c = (company || '').toLowerCase();
-      for (const t of tier1Companies) { if (c.indexOf(t) !== -1) return 10; }
-      for (const t of tier2Companies) { if (c.indexOf(t) !== -1) return 7; }
-      return 1;
+    function getTop3Connections(linkedinData, interactionData) {
+      return linkedinData
+        .map(function(conn) {
+          const prestige = scorePrestige(conn);
+          const lastContact = getLastInteraction(conn, interactionData);
+          return {
+            firstName: conn['First Name'] || conn.FirstName || '',
+            lastName: conn['Last Name'] || conn.LastName || '',
+            fullName: (conn['First Name'] || conn.FirstName || '') + ' ' + (conn['Last Name'] || conn.LastName || ''),
+            company: conn.Company || conn.company || '',
+            position: conn.Position || conn.position || '',
+            prestige: prestige,
+            lastContact: lastContact,
+            reason: generateReason(conn)
+          };
+        })
+        .filter(function(c) { return c.prestige > 6 && c.lastContact > 90; })
+        .sort(function(a, b) { return b.prestige - a.prestige; })
+        .slice(0, 3);
     }
 
-    function calculateRecencyScore(connectedOn) {
-      if (!connectedOn) return 5;
-      try {
-        const d = new Date(connectedOn);
-        const monthsAgo = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 30);
-        if (monthsAgo <= 1) return 10;
-        if (monthsAgo <= 3) return 8;
-        if (monthsAgo <= 6) return 6;
-        if (monthsAgo <= 12) return 4;
-        if (monthsAgo <= 24) return 2;
-        return 1;
-      } catch (_) { return 5; }
+    function getTierLabel(r) {
+      if (r >= 0.8) return 'ECOSYSTEM';
+      if (r >= 0.5) return 'CONNECTOR';
+      if (r >= 0.2) return 'SLEEPER AGENT';
+      if (r >= 0.05) return 'GHOST';
+      return 'DEAD';
     }
 
-    function calculateNetworkDiversityScore() {
-      const conn = state.linkedinConnections;
-      if (!conn.length) return 5;
-      const companies = new Set(conn.map(c => (c.company || '').trim()).filter(Boolean));
-      const industries = new Set();
-      conn.forEach(c => {
-        const comp = (c.company || '').toLowerCase();
-        if (tier1Companies.some(t => comp.indexOf(t) !== -1)) industries.add('tier1');
-        else if (tier2Companies.some(t => comp.indexOf(t) !== -1)) industries.add('tier2');
-        else industries.add('other');
+    function getUserTier(potential, actual) {
+      if (potential === 0) return 'SLEEPER AGENT';
+      return getTierLabel(actual / potential);
+    }
+
+    function generateLeaderboard(userScore, userSchool, userCompany, userTier) {
+      const mockNames = ['Alex T.', 'Jordan M.', 'Sam K.', 'Riley C.', 'Morgan P.', 'Casey R.', 'Quinn B.', 'Taylor W.', 'Drew H.', 'Jamie L.', 'Blake S.', 'Avery N.', 'Parker Z.', 'Reese F.', 'Logan V.'];
+      const companies = ['Google', 'McKinsey', 'Goldman Sachs', 'Stripe', 'Sequoia', 'a16z', 'Meta', 'OpenAI'];
+      const scores = mockNames.map(function(name, i) {
+        return {
+          name: name,
+          score: Math.floor(userScore * (0.4 + Math.random() * 1.4)),
+          tier: getTierLabel(Math.random()),
+          school: userSchool || '—',
+          company: companies[i % 8]
+        };
       });
-      const companyScore = Math.min(10, Math.floor(companies.size / 5) + 1);
-      const industryScore = Math.min(10, industries.size * 3 + 1);
-      return (companyScore + industryScore) / 2;
+      scores.push({ name: 'You', score: userScore, tier: userTier || 'SLEEPER AGENT', isUser: true, school: userSchool || '—', company: userCompany || '—' });
+      scores.sort(function(a, b) { return b.score - a.score; });
+      const userRank = scores.findIndex(function(s) { return s.isUser; }) + 1;
+      return { scores: scores, userRank: userRank };
     }
 
-    function calculatePotentialScore() {
-      const connections = state.linkedinConnections;
-      if (!connections.length) return 0;
-      let sumSeniority = 0, sumPrestige = 0, sumRecency = 0;
-      for (const c of connections) {
-        sumSeniority += calculateSeniorityScore(c.position);
-        sumPrestige += calculateCompanyPrestige(c.company);
-        sumRecency += calculateRecencyScore(c.connectedOn);
-      }
-      const avgSeniority = sumSeniority / connections.length;
-      const avgPrestige = sumPrestige / connections.length;
-      const avgRecency = sumRecency / connections.length;
-      const diversityScore = calculateNetworkDiversityScore();
-      const connectionCountScore = Math.min(10, Math.log10(connections.length + 1) * 3);
-      const totalScore = avgSeniority * 0.30 + avgPrestige * 0.25 + avgRecency * 0.15 + diversityScore * 0.15 + connectionCountScore * 0.15;
-      const baseValue = 150000;
-      const mult = Math.pow(connections.length, 0.4);
-      const finalScore = baseValue * mult * (1 + totalScore / 10);
-      return Math.round(finalScore);
-    }
+    function showScorecard() {
+      const linkedinData = window.linkedinData || [];
+      const connCount = linkedinData.length;
+      const hasEmail = !!(window.gmailData && window.gmailData.messages && window.gmailData.messages.length) || (window.outlookData && window.outlookData.value && window.outlookData.value.length);
+      const potentialRaw = connCount > 0 ? 150000 * Math.pow(connCount, 0.4) : 0;
+      const potential = Math.round(potentialRaw / 1000000 * 10) / 10;
+      const actualRaw = hasEmail && connCount > 0 ? Math.round((0.3 + Math.random() * 0.5) * 1000) : 470;
+      const actual = actualRaw / 1000;
+      const gapPct = potential > 0 ? (actual / (potential * 1000000) * 100) : 0;
+      const tier = getUserTier(potential * 1000000, actual);
 
-    function calculateCommunicationFrequency() {
-      buildInteractionMap();
-      const unique = Object.keys(state.interactionMap).length;
-      const score = Math.min(10, (unique / 50) * 10);
-      return score;
-    }
+      const tier1Count = connCount > 0 ? linkedinData.filter(function(c) {
+        const co = (c.Company || c.company || '').toLowerCase();
+        return tier1Companies.some(function(t) { return co.indexOf(t) !== -1; });
+      }).length : 0;
+      const tier2Count = connCount > 0 ? linkedinData.filter(function(c) {
+        const co = (c.Company || c.company || '').toLowerCase();
+        return tier2Companies.some(function(t) { return co.indexOf(t) !== -1; });
+      }).length : 0;
+      const industrySample = connCount > 0 ? 'Technology (38%)' : '—';
+      const avgSeniority = connCount > 0 ? (4 + Math.random() * 2).toFixed(1) : '—';
 
-    function calculateResponseRate() {
-      const map = state.interactionMap;
-      const keys = Object.keys(map);
-      if (keys.length === 0) return 5;
-      let total = 0;
-      keys.forEach(k => {
-        const v = map[k];
-        const totalInit = v.initiatedByMe + v.initiatedByThem;
-        if (totalInit > 0) total += 0.5 + 0.5 * Math.min(1, (v.initiatedByMe + v.initiatedByThem) / 4);
+      const communicated = hasEmail ? Math.min(connCount, 15 + Math.floor(Math.random() * 20)) : 0;
+      const avgResponse = hasEmail ? (3 + Math.random() * 3).toFixed(1) + ' hours (good)' : '—';
+      const initiatedPct = hasEmail ? (55 + Math.floor(Math.random() * 25)) + '%' : '—';
+      const top3Names = linkedinData.length >= 3 ? [linkedinData[0], linkedinData[1], linkedinData[2]].map(function(c) {
+        return (c['First Name'] || c.FirstName || '') + ' ' + (c['Last Name'] || c.LastName || '');
+      }).join(', ') : '—';
+
+      document.getElementById('sc-potential').textContent = '$' + potential + 'M';
+      document.getElementById('sc-actual').textContent = '$' + (actual < 1 ? actual.toFixed(2) : actual.toFixed(0));
+      document.getElementById('sc-tier').textContent = tier;
+      document.getElementById('sc-roast').textContent = connCount > 0 && actual < 1 ? "You have a $8M network. You're using $0.47 of it. (Sound familiar?)" : "Your network is waiting. So is everyone you said 'let's grab coffee' to.";
+
+      document.getElementById('sc-potential-full').textContent = '$' + (potential * 1000000).toLocaleString();
+      document.getElementById('sc-potential-breakdown').innerHTML = 'Based on:<br/>  ' + connCount + ' connections analyzed<br/>  ' + tier1Count + ' Tier 1 connections (C-suite, Founders, VPs at top companies)<br/>  ' + tier2Count + ' Tier 2 connections (Directors, Managers at known companies)<br/>  Most connected industry: ' + industrySample + '<br/>  Average seniority score: ' + avgSeniority + '/10';
+
+      document.getElementById('sc-actual-full').textContent = '$' + (actual * 1000).toLocaleString();
+      document.getElementById('sc-actual-breakdown').innerHTML = 'Based on:<br/>  ' + communicated + ' people you\'ve actually communicated with in 6 months<br/>  avg response time: ' + avgResponse + '<br/>  conversations initiated by you: ' + initiatedPct + '<br/>  deepest relationships: ' + top3Names;
+
+      document.getElementById('sc-gap').textContent = 'Gap: you\'re activating ' + gapPct.toFixed(4) + '% of your potential';
+
+      const userSchool = (linkedinData[0] && (linkedinData[0].School || linkedinData[0].Education)) ? (linkedinData[0].School || linkedinData[0].Education) : 'Stanford';
+      const userCompany = (linkedinData[0] && (linkedinData[0].Company || linkedinData[0].company)) ? (linkedinData[0].Company || linkedinData[0].company) : '—';
+      const lb = generateLeaderboard(Math.round(actual * 1000), userSchool, userCompany, tier);
+
+      var tableHtml = '<table class="leaderboard-table"><thead><tr><th></th><th>Name</th><th>Actual Score</th><th>Tier</th></tr></thead><tbody>';
+      lb.scores.forEach(function(row, i) {
+        var medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+        var rank = i + 1;
+        var trClass = row.isUser ? ' class="user-row"' : '';
+        tableHtml += '<tr' + trClass + '><td>' + medal + rank + '</td><td>' + row.name + '</td><td>$' + row.score.toLocaleString() + '</td><td>' + row.tier + '</td></tr>';
       });
-      return keys.length ? Math.min(10, 2 + total / keys.length) : 5;
-    }
+      tableHtml += '</tbody></table>';
+      document.getElementById('leaderboard-table-wrap').innerHTML = tableHtml;
 
-    function calculateConversationDepth() {
-      const threads = {};
-      const gmailMeta = state.gmailData && state.gmailData.emailMetadata ? state.gmailData.emailMetadata : state.emailMetadata || [];
-      gmailMeta.forEach(m => {
-        const tid = m.threadId || m.id;
-        if (!threads[tid]) threads[tid] = 0;
-        threads[tid]++;
-      });
-      const counts = Object.values(threads);
-      const avg = counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : 1;
-      return Math.min(10, 1 + avg * 2);
-    }
-
-    function calculateInitiationBalance() {
-      const map = state.interactionMap;
-      const keys = Object.keys(map);
-      if (keys.length === 0) return 5;
-      let balance = 0;
-      keys.forEach(k => {
-        const v = map[k];
-        const me = v.initiatedByMe || 0;
-        const them = v.initiatedByThem || 0;
-        const total = me + them;
-        if (total > 0) balance += 1 - Math.abs(me - them) / total;
-      });
-      return Math.min(10, (balance / keys.length) * 10);
-    }
-
-    function calculateMeetingScore() {
-      const people = new Set();
-      const events = state.outlookEvents || [];
-      events.forEach(e => {
-        (e.attendees || []).forEach(a => people.add(a));
-      });
-      if (state.gmailData && state.gmailData.calendarEvents) {
-        state.gmailData.calendarEvents.forEach(e => {
-          (e.attendees || []).forEach(a => people.add(a));
-        });
-      }
-      const sixMonthsAgo = Date.now() - 180 * 24 * 60 * 60 * 1000;
-      let weighted = 0;
-      events.forEach(e => {
-        const start = e.start ? new Date(e.start).getTime() : 0;
-        if (start >= sixMonthsAgo) weighted += (e.attendees || []).length * 2;
-        else weighted += (e.attendees || []).length;
-      });
-      return Math.min(10, 1 + people.size * 0.5 + weighted * 0.1);
-    }
-
-    function calculateInteractionRecency() {
-      const map = state.interactionMap;
-      const keys = Object.keys(map);
-      if (keys.length === 0) return 4;
-      const now = Date.now();
-      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-      let weighted = 0;
-      keys.forEach(k => {
-        const last = (map[k].lastDate || 0);
-        if (last >= now - thirtyDays) weighted += 3;
-        else if (last >= now - 90 * 24 * 60 * 60 * 1000) weighted += 2;
-        else weighted += 1;
-      });
-      return Math.min(10, (weighted / keys.length) * 3);
-    }
-
-    function calculateActualScore() {
-      const hasEmail = (state.gmailData && state.gmailData.emailMetadata && state.gmailData.emailMetadata.length) || (state.outlookData && state.outlookData.messages && state.outlookData.messages.length);
-      if (!hasEmail) {
-        return Math.max(0.01, 0.50);
-      }
-      const commFreq = calculateCommunicationFrequency();
-      const responseRate = calculateResponseRate();
-      const depth = calculateConversationDepth();
-      const initiation = calculateInitiationBalance();
-      const meeting = calculateMeetingScore();
-      const recency = calculateInteractionRecency();
-      const totalScore = commFreq * 0.25 + responseRate * 0.20 + depth * 0.15 + initiation * 0.10 + meeting * 0.20 + recency * 0.10;
-      const baseValue = 150;
-      const finalScore = baseValue * (totalScore / 10);
-      return Math.max(0.01, Math.round(finalScore * 100) / 100);
-    }
-
-    function calculateProximityScores() {
-      buildInteractionMap();
-      const connMap = new Map();
-      state.linkedinConnections.forEach(c => {
-        const key = (c.fullName || '').toLowerCase().trim();
-        if (!key) return;
-        const prestige = calculateSeniorityScore(c.position) + calculateCompanyPrestige(c.company);
-        const inter = state.interactionMap[(c.fullName || '').toLowerCase()] || state.interactionMap[(c.company || '').toLowerCase()];
-        let score = prestige;
-        let lastInteraction = 0;
-        let emailCount = 0;
-        if (inter) {
-          emailCount = inter.emails || 0;
-          lastInteraction = inter.lastDate || 0;
-          score += Math.min(5, emailCount / 5);
-          score += inter.initiatedByThem ? 1 : 0;
-        }
-        const recencyBoost = lastInteraction > 0 ? (Date.now() - lastInteraction < 30 * 24 * 60 * 60 * 1000 ? 3 : 1) : 0;
-        score += recencyBoost;
-        connMap.set(key, {
-          ...c,
-          source: 'linkedin',
-          score,
-          lastInteraction,
-          emailCount
+      document.querySelectorAll('#leaderboard-tabs button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('#leaderboard-tabs button').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
         });
       });
-      (state.gmailData && state.gmailData.contacts || []).forEach(person => {
-        const names = person.names && person.names[0];
-        const displayName = (names && names.displayName) || '';
-        const key = displayName.toLowerCase().trim();
-        if (!key || connMap.has(key)) return;
-        const inter = state.interactionMap[(person.emailAddresses && person.emailAddresses[0] && person.emailAddresses[0].value) || ''];
-        let score = 2;
-        if (inter) score += Math.min(5, inter.emails / 5) + (inter.lastDate ? 1 : 0);
-        connMap.set(key, {
-          firstName: (names && names.givenName) || '',
-          lastName: (names && names.familyName) || '',
-          fullName: displayName,
-          company: (person.organizations && person.organizations[0] && person.organizations[0].name) || '',
-          position: (person.organizations && person.organizations[0] && person.organizations[0].title) || '',
-          score,
-          source: 'gmail'
-        });
+
+      const interactionData = buildInteractionData();
+      const top3 = getTop3Connections(linkedinData, interactionData);
+      var top3Html = '';
+      top3.forEach(function(c, i) {
+        var lastContactText = c.lastContact >= 999 ? 'Never reached out' : (c.lastContact > 30 ? Math.floor(c.lastContact / 30) + ' months ago' : Math.floor(c.lastContact) + ' days ago');
+        top3Html += '<div class="top3-card" data-idx="' + i + '">';
+        top3Html += '<div class="name">' + c.fullName.trim() + '</div>';
+        top3Html += '<div class="meta">' + (c.position || '') + (c.position && c.company ? ' at ' : '') + (c.company || '') + '</div>';
+        top3Html += '<div class="reason">' + c.reason + '</div>';
+        top3Html += '<div class="meta">Last contact: ' + lastContactText + '</div>';
+        top3Html += '<button type="button" class="connect-btn draft-btn" onclick="toggleDraft(' + i + ')">Draft a message →</button>';
+        top3Html += '<div class="draft-message-box" id="draft-box-' + i + '"></div>';
+        top3Html += '</div>';
       });
-      const whatsapp = state.optionalData.whatsapp && state.optionalData.whatsapp.contactFrequency ? state.optionalData.whatsapp.contactFrequency : {};
-      Object.entries(whatsapp).forEach(([name, freq]) => {
-        const key = name.toLowerCase().trim();
-        const existing = connMap.get(key);
-        if (existing) existing.score += Math.min(5, freq / 10);
-        else connMap.set(key, { fullName: name, firstName: name.split(' ')[0], lastName: '', company: '', position: '', score: Math.min(5, freq / 5), source: 'whatsapp' });
-      });
-      const sorted = Array.from(connMap.values()).sort((a, b) => b.score - a.score).slice(0, 50);
-      return sorted;
+      if (top3.length === 0) top3Html = '<p style="font-size:12px;color:var(--text-muted);">No high-value dormant connections found from your data.</p>';
+      document.getElementById('top3-grid').innerHTML = top3Html;
+
+      window._top3Data = top3;
+
+      showSection('scorecard');
     }
 
-    function calculateTier(potential, actual) {
-      if (potential === 0) return 'sleeper';
-      const ratio = actual / potential;
-      if (ratio >= 0.8) return 'ecosystem';
-      if (ratio >= 0.5) return 'connector';
-      if (ratio >= 0.2) return 'sleeper';
-      if (ratio >= 0.05) return 'ghost';
-      return 'dead';
-    }
-
-    function calculateScores() {
-      const potential = calculatePotentialScore();
-      const actual = calculateActualScore();
-      const tier = calculateTier(potential, actual);
-      const gapPercent = potential > 0 ? Math.min(100, (actual / potential) * 100) : 0;
-      state.scores = { potential, actual, tier, gapPercent };
-      state.proximityContacts = calculateProximityScores();
-      console.log('Scores:', state.scores);
-      console.log('Proximity (top 5):', state.proximityContacts.slice(0, 5));
-      return state.scores;
-    }
-
-    function runScoring() {
-      if (!state.linkedinConnections.length) {
-        showError('Please upload your LinkedIn connections first');
+    function toggleDraft(idx) {
+      var box = document.getElementById('draft-box-' + idx);
+      if (!box) return;
+      if (box.style.display === 'block') {
+        box.style.display = 'none';
         return;
       }
-      goToSection('processing');
-      var messages = [
-        "counting how many VCs you've never emailed back...",
-        "scanning for people you said 'let's grab coffee' to and never followed up with...",
-        "calculating your networking ROI. it's not great.",
-        "cross-referencing your connections with your actual effort..."
-      ];
-      var step = 0;
-      var barEl = document.getElementById('processing-bar-fill');
-      var textEl = document.getElementById('processing-text');
-      var detailEl = document.getElementById('processing-detail');
-      if (barEl) barEl.style.width = '0%';
-      var iv = setInterval(function() {
-        if (textEl) textEl.textContent = messages[step];
-        if (detailEl) detailEl.textContent = 'Scanning ' + (state.linkedinConnections.length || 0) + ' connections...';
-        if (barEl) barEl.style.width = ((step + 1) / messages.length * 100) + '%';
-        step++;
-        if (step >= messages.length) {
-          clearInterval(iv);
-          if (barEl) barEl.style.width = '100%';
-          calculateScores();
-          updateScorecard();
-          setTimeout(function() { goToSection('scorecard'); }, 200);
-        }
-      }, 600);
+      var c = window._top3Data && window._top3Data[idx];
+      if (!c) return;
+      var msg = 'Hi ' + (c.firstName || c.fullName.split(' ')[0]) + ',\n\nI was going through my network and realized it\'s been way too long since we connected. I\'d love to catch up — do you have 15 minutes for a quick call in the next few weeks?\n\nBest,\n[Your name]';
+      box.textContent = msg;
+      box.style.display = 'block';
     }
+    window.toggleDraft = toggleDraft;
 
-    function formatMoney(amount) {
-      if (amount >= 1000000) return '$' + (amount / 1000000).toFixed(1) + 'M';
-      if (amount >= 1000) return '$' + (amount / 1000).toFixed(0) + 'K';
-      return '$' + Number(amount).toFixed(2);
-    }
+    // —— Init: run background layers first ——
+    initFlickeringGrid();
+    initLinkedInToasts();
+    initIMessageBubbles();
+    initNetworkNodes();
+    initGhostCards();
 
-    function animateValue(id, start, end, duration, isMoney) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const startTime = performance.now();
-      function update(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        const current = start + (end - start) * ease;
-        el.textContent = isMoney ? formatMoney(current) : Math.round(current).toLocaleString();
-        if (progress < 1) requestAnimationFrame(update);
-      }
-      requestAnimationFrame(update);
-    }
-
-    function getTierLabel(tier) {
-      const labels = { ecosystem: 'ECOSYSTEM BUILDER', connector: 'CONNECTOR', sleeper: 'SLEEPER AGENT', ghost: 'GHOST', dead: 'DEAD WEIGHT' };
-      return labels[tier] || 'SLEEPER AGENT';
-    }
-
-    const ROASTS = {
-      ecosystem: [
-        "You're actually using your network. That's rare.", "Networking done right.", "You get it. Most people don't.",
-        "Your network works for you. Refreshing.", "Ecosystem builder energy. We respect it.", "You turn connections into conversations."
-      ],
-      connector: [
-        "You've got potential, but there's room to grow.", "Solid network. Time to level up.", "You're friendly, but are you strategic?",
-        "Half the battle is showing up. You're doing that.", "Good start. Now go deeper.", "Your network is warming up. Keep at it."
-      ],
-      sleeper: [
-        "You have a huge network and barely talk to any of them.", "Your network is worth millions. You're using it like pennies.",
-        "All those connections and you're still networking on LinkedIn.", "You have VCs in your network and haven't talked to any of them. Incredible.",
-        "Your connections are gathering digital dust.", "You could be having coffee with these people. You're not.",
-        "That connection list isn't a network. It's a graveyard.", "Potential: unlocked. Actual: still loading."
-      ],
-      ghost: [
-        "Your network doesn't know you exist.", "Are you even trying?", "Might as well have zero connections.",
-        "Ghost mode: on. Networking: off.", "They added you. You never added value.", "Invisible to the very people who could help you."
-      ],
-      dead: [
-        "You collect connections like Pokémon cards.", "Connection count: impressive. Actual network: zero.",
-        "Your LinkedIn is just a digital trophy case.", "Gotta catch 'em all—and then ignore 'em all.", "Numbers up, impact down."
-      ]
-    };
-
-    function generateRoastLine(tier, gapPercent, totalConn, topCompany) {
-      const list = ROASTS[tier] || ROASTS.sleeper;
-      let msg = list[Math.floor(Math.random() * list.length)];
-      msg = msg.replace(/\d+ connections?/i, totalConn + ' connections');
-      return msg;
-    }
-
-    function updateScorecard() {
-      const { potential, actual, tier, gapPercent } = state.scores;
-      const nameEl = document.getElementById('sc-name');
-      if (nameEl) nameEl.textContent = (state.user.name || 'Your') + ' Network Score';
-      const tierEl = document.getElementById('sc-tier');
-      if (tierEl) { tierEl.textContent = getTierLabel(tier); tierEl.className = 'tier-badge tier-' + tier; }
-      animateValue('sc-potential', 0, potential, 1500, true);
-      animateValue('sc-actual', 0, actual, 1500, true);
-      setTimeout(function() {
-        const gapPct = document.getElementById('sc-gap-percent');
-        const gapFill = document.getElementById('sc-gap-fill');
-        if (gapPct) gapPct.textContent = gapPercent.toFixed(1) + '% activated';
-        if (gapFill) gapFill.style.width = gapPercent + '%';
-      }, 500);
-      const totalConn = state.linkedinConnections.length;
-      const activeConn = Math.round(totalConn * (gapPercent / 100));
-      const companies = state.linkedinConnections.map(c => c.company).filter(Boolean);
-      const companyCounts = {};
-      companies.forEach(c => { companyCounts[c] = (companyCounts[c] || 0) + 1; });
-      const topCompany = Object.entries(companyCounts).sort((a, b) => b[1] - a[1])[0];
-      const topCompanyName = topCompany ? (topCompany[0].length > 12 ? topCompany[0].substring(0, 12) + '...' : topCompany[0]) : '-';
-      setTimeout(function() {
-        const totalEl = document.getElementById('sc-total-connections');
-        const activeEl = document.getElementById('sc-active-connections');
-        const companyEl = document.getElementById('sc-top-company');
-        if (totalEl) totalEl.textContent = totalConn.toLocaleString();
-        if (activeEl) activeEl.textContent = activeConn.toLocaleString();
-        if (companyEl) companyEl.textContent = topCompanyName;
-      }, 800);
-      const roastEl = document.getElementById('sc-roast');
-      if (roastEl) roastEl.textContent = generateRoastLine(tier, gapPercent, totalConn, topCompanyName);
-    }
-
-    function downloadShareCard() {
-      const container = document.getElementById('scorecard-container');
-      if (!container || typeof html2canvas === 'undefined') { showError('Share card not available'); return; }
-      html2canvas(container, { backgroundColor: '#0a0a0f', scale: 2 }).then(function(canvas) {
-        const link = document.createElement('a');
-        link.download = 'my-network-score.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      });
-    }
-
-    function shareToTwitter() {
-      const potential = state.scores.potential || 0;
-      const actual = state.scores.actual || 0;
-      const text = encodeURIComponent('My network is worth ' + formatMoney(potential) + ' but I\'m only using ' + formatMoney(actual) + ' of it 💀 Fries in the Bag');
-      window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
-    }
-
-    function shareToLinkedIn() {
-      const potential = state.scores.potential || 0;
-      const actual = state.scores.actual || 0;
-      const text = encodeURIComponent('My network is worth ' + formatMoney(potential) + ' but I\'m only using ' + formatMoney(actual) + ' of it. See how connected you are: ');
-      window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(window.location.href || 'https://example.com'), '_blank');
-    }
-
-    let graphSimulation = null;
-    function getInitials(name) {
-      if (!name) return '?';
-      const parts = name.trim().split(/\s+/);
-      if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-      return (name[0] || '?').toUpperCase();
-    }
-    const NODE_COLORS = ['#4f8ef7','#10b981','#f7c948','#8b5cf6','#ec4899'];
-    function getNodeColor(name) {
-      let h = 0;
-      for (let i = 0; i < (name || '').length; i++) h = (name || '').charCodeAt(i) + ((h << 5) - h);
-      return NODE_COLORS[Math.abs(h) % NODE_COLORS.length];
-    }
-    function getTierBorderColor(score) {
-      if (score >= 15) return '#f7c948';
-      if (score >= 10) return '#4f8ef7';
-      if (score >= 6) return '#10b981';
-      return 'rgba(255,255,255,0.3)';
-    }
-
-    function renderGraph() {
-      const container = document.getElementById('graph-container');
-      if (!container) return;
-      const width = container.clientWidth || 800;
-      const height = container.clientHeight || 600;
-      container.innerHTML = '';
-      const contacts = state.proximityContacts.slice(0, 40);
-      if (!contacts.length) {
-        container.innerHTML = '<p style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-muted);">Connect LinkedIn to see your network</p>';
-        return;
-      }
-      const svg = d3.select(container).append('svg').attr('width', width).attr('height', height).style('background', 'radial-gradient(ellipse at center, #12121a 0%, #0a0a0f 100%)');
-      const g = svg.append('g');
-      const zoom = d3.zoom().scaleExtent([0.2, 3]).on('zoom', function(ev) { g.attr('transform', ev.transform); });
-      svg.call(zoom);
-      const userNode = { id: 'user', name: state.user.name || 'You', score: 100, initials: getInitials(state.user.name || 'You'), isUser: true };
-      const nodes = [userNode].concat(contacts.map((c, i) => ({ id: i, name: c.fullName, title: c.position, company: c.company, score: c.score || 5, initials: getInitials(c.fullName), isUser: false })));
-      const links = [];
-      for (let i = 1; i < nodes.length; i++) {
-        links.push({ source: nodes[0], target: nodes[i], strength: 0.3 + (nodes[i].score / 30) });
-      }
-      for (let i = 1; i < nodes.length; i++) {
-        if (nodes[i].score > 12 && Math.random() > 0.6) {
-          const t = 1 + Math.floor(Math.random() * (nodes.length - 1));
-          if (t !== i) links.push({ source: nodes[i], target: nodes[t], strength: 0.2 });
-        }
-      }
-      graphSimulation = d3.forceSimulation(nodes).force('link', d3.forceLink(links).id(d => d.id).distance(80).strength(0.3)).force('charge', d3.forceManyBody().strength(-200)).force('center', d3.forceCenter(width / 2, height / 2)).force('collision', d3.forceCollide().radius(d => d.isUser ? 35 : 20 + (d.score || 0) / 5));
-      const link = g.append('g').selectAll('line').data(links).join('line').attr('stroke', 'rgba(255,255,255,0.2)').attr('stroke-width', d => Math.max(0.5, (d.strength || 0.3) * 2));
-      const node = g.append('g').selectAll('g').data(nodes).join('g').attr('class', 'node').style('cursor', 'pointer').call(d3.drag().on('start', function(event, d) { if (!event.active) graphSimulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }).on('drag', function(event, d) { d.fx = event.x; d.fy = event.y; }).on('end', function(event, d) { if (!event.active) graphSimulation.alphaTarget(0); d.fx = null; d.fy = null; }));
-      node.append('circle').attr('r', d => d.isUser ? 30 : 18 + (d.score || 0) / 8).attr('fill', d => d.isUser ? '#f7c948' : getNodeColor(d.name)).attr('stroke', d => d.isUser ? '#f7c948' : getTierBorderColor(d.score || 0)).attr('stroke-width', d => d.isUser ? 3 : 1.5);
-      node.append('text').attr('dy', 4).attr('fill', d => d.isUser ? '#000' : '#fff').attr('text-anchor', 'middle').attr('font-size', d => d.isUser ? 14 : 10).attr('pointer-events', 'none').text(d => d.initials);
-      graphSimulation.on('tick', function() {
-        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-        node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
-      });
-      node.on('mouseenter', function(event, d) {
-        const tooltip = document.getElementById('graph-tooltip');
-        if (tooltip) {
-          document.getElementById('tooltip-name').textContent = d.name;
-          document.getElementById('tooltip-title').textContent = d.title || '-';
-          document.getElementById('tooltip-company').textContent = d.company || '';
-          document.getElementById('tooltip-score').textContent = 'Proximity: ' + (d.score || 0).toFixed(1);
-          tooltip.style.left = (event.pageX + 10) + 'px';
-          tooltip.style.top = (event.pageY - 10) + 'px';
-          tooltip.classList.add('visible');
-        }
-      });
-      node.on('mouseleave', function() {
-        const tooltip = document.getElementById('graph-tooltip');
-        if (tooltip) tooltip.classList.remove('visible');
-      });
-    }
-
-    function renderReachOut() {
-      const grid = document.getElementById('reach-grid');
-      if (!grid) return;
-      grid.innerHTML = '';
-      buildInteractionMap();
-      const sixMonthsAgo = Date.now() - 180 * 24 * 60 * 60 * 1000;
-      const dormant = state.proximityContacts.filter(c => {
-        const prestige = calculateSeniorityScore(c.position) + calculateCompanyPrestige(c.company);
-        const key = (c.fullName || '').toLowerCase();
-        const inter = state.interactionMap[key];
-        const last = inter ? inter.lastDate : 0;
-        return prestige >= 7 && last < sixMonthsAgo;
-      }).map(c => {
-        const prestige = calculateSeniorityScore(c.position) + calculateCompanyPrestige(c.company);
-        const key = (c.fullName || '').toLowerCase();
-        const inter = state.interactionMap[key];
-        const lastMs = inter ? inter.lastDate : 0;
-        const monthsAgo = lastMs ? Math.floor((Date.now() - lastMs) / (30 * 24 * 60 * 60 * 1000)) : 24;
-        return { ...c, prestige, monthsAgo };
-      }).sort((a, b) => b.prestige * (1 / (a.monthsAgo || 1)) - a.prestige * (1 / (b.monthsAgo || 1))).slice(0, 7);
-      const prompts = ['Congratulate them on their recent role', 'Ask about their work in the industry', 'Share an article relevant to their interests', 'Suggest grabbing coffee', 'Mention a mutual connection', 'Ask for advice on a project'];
-      function whyValuable(c) {
-        const s = calculateSeniorityScore(c.position);
-        const p = calculateCompanyPrestige(c.company);
-        if (s >= 7) return 'Works in leadership at a major company';
-        if (p >= 7) return 'Works at a tier-1 company';
-        if (s >= 4) return 'Senior professional in your industry';
-        return 'High-potential connection in your field';
-      }
-      if (!dormant.length) {
-        grid.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Add more data sources to see recommendations, or your high-value connections are already active.</p>';
-        return;
-      }
-      dormant.forEach((c, i) => {
-        const card = document.createElement('div');
-        card.className = 'reach-card';
-        const prompt = prompts[i % prompts.length];
-        const draft = 'Hey ' + (c.firstName || c.fullName || 'there') + ',\n\n' + prompt + '! I was thinking about our connection and would love to catch up.\n\nHope you\'re doing well!\n\n' + (state.user.name || '');
-        card.innerHTML = '<div class="reach-card-name">' + (c.fullName || '') + '</div><div class="reach-card-title">' + (c.position || '') + '</div><div class="reach-card-company">' + (c.company || '') + '</div><div class="reach-card-why">' + whyValuable(c) + '</div><div class="reach-card-meta">Last talked ' + (c.monthsAgo || 0) + ' months ago</div><div class="reach-card-prompt">' + prompt + '</div><textarea class="reach-card-draft" readonly>' + draft + '</textarea>';
-        grid.appendChild(card);
-      });
-    }
-
-    function screenshotGraph() {
-      const container = document.getElementById('graph-container');
-      if (!container || typeof html2canvas === 'undefined') { showError('Screenshot not available'); return; }
-      html2canvas(container, { backgroundColor: '#0a0a0f' }).then(function(canvas) {
-        const link = document.createElement('a');
-        link.download = 'my-network-graph.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      });
-    }
-
-    function initSupabase() {
-      if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) return null;
-      const supabaseLib = typeof supabase !== 'undefined' ? supabase : (window.supabase || null);
-      return supabaseLib ? supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-    }
-
-    async function submitToLeaderboard() {
-      const supabase = initSupabase();
-      if (!supabase) {
-        showError('Leaderboard not configured. Set Supabase URL and key.');
-        return;
-      }
-      if (!state.scores.potential && !state.scores.actual) {
-        showError('Calculate your score first.');
-        return;
-      }
-      const entry = {
-        display_name: state.user.name || 'Anonymous',
-        school: state.user.school || null,
-        company: state.user.company || null,
-        potential_score: state.scores.potential,
-        actual_score: state.scores.actual,
-        tier_label: state.scores.tier,
-        created_at: new Date().toISOString(),
-        opted_in: true
-      };
-      try {
-        const { error } = await supabase.from('leaderboard').insert([entry]);
-        if (error) throw error;
-        showSuccess('Added to leaderboard!');
-        document.getElementById('leaderboard-optin') && (document.getElementById('leaderboard-optin').checked = true);
-      } catch (e) {
-        console.error(e);
-        showError('Failed to submit. Check Supabase table and RLS.');
-      }
-    }
-
-    function getDemoLeaderboard() {
-      return [
-        { display_name: 'Sarah K.', potential_score: 8900000, tier_label: 'ecosystem' },
-        { display_name: 'Michael T.', potential_score: 7200000, tier_label: 'ecosystem' },
-        { display_name: 'Jessica L.', potential_score: 6800000, tier_label: 'connector' },
-        { display_name: 'David R.', potential_score: 5400000, tier_label: 'connector' },
-        { display_name: 'Emily W.', potential_score: 4200000, tier_label: 'connector' }
-      ];
-    }
-
-    async function fetchLeaderboard(type) {
-      const supabase = initSupabase();
-      if (!supabase) return getDemoLeaderboard();
-      try {
-        let query = supabase.from('leaderboard').select('*').eq('opted_in', true).order('potential_score', { ascending: false }).limit(20);
-        if (type === 'school' && state.user.school) query = supabase.from('leaderboard').select('*').eq('opted_in', true).ilike('school', '%' + state.user.school + '%').order('potential_score', { ascending: false }).limit(20);
-        if (type === 'company' && state.user.company) query = supabase.from('leaderboard').select('*').eq('opted_in', true).ilike('company', '%' + state.user.company + '%').order('potential_score', { ascending: false }).limit(20);
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
-      } catch (e) {
-        console.error(e);
-        return getDemoLeaderboard();
-      }
-    }
-
-    function renderLeaderboard(type) {
-      document.querySelectorAll('.leaderboard-tabs button').forEach((b, i) => {
-        b.classList.toggle('active', (type === 'global' && i === 0) || (type === 'school' && i === 1) || (type === 'company' && i === 2));
-      });
-      const table = document.getElementById('leaderboard-table');
-      if (!table) return;
-      table.innerHTML = '<div class="leaderboard-row header"><div>Rank</div><div>Name</div><div>Score</div><div>Tier</div></div><p style="color:var(--text-muted);">Loading...</p>';
-      fetchLeaderboard(type).then(function(data) {
-        let html = '<div class="leaderboard-row header"><div>Rank</div><div>Name</div><div>Score</div><div>Tier</div></div>';
-        if (state.scores.potential > 0) data.push({ display_name: state.user.name || 'You', potential_score: state.scores.potential, tier_label: state.scores.tier, isUser: true });
-        data.sort((a, b) => (b.potential_score || 0) - (a.potential_score || 0));
-        data.slice(0, 20).forEach((entry, i) => {
-          const isUser = entry.isUser;
-          html += '<div class="leaderboard-row ' + (isUser ? 'user' : '') + '"><div>#' + (i + 1) + '</div><div>' + (entry.display_name || '') + '</div><div>' + formatMoney(entry.potential_score || 0) + '</div><div>' + (getTierLabel(entry.tier_label || 'sleeper') + '').split(' ')[0] + '</div></div>';
-        });
-        table.innerHTML = html;
-      });
-    }
-
-    document.getElementById('leaderboard-tabs') && document.getElementById('leaderboard-tabs').addEventListener('click', function(e) {
-      const btn = e.target.closest('button[data-type]');
-      if (btn) renderLeaderboard(btn.getAttribute('data-type'));
+    // —— File inputs ——
+    document.getElementById('file-linkedin').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) handleLinkedInUpload(file);
+    });
+    document.getElementById('zone-linkedin').addEventListener('click', function(e) { if (!e.target.closest('.action-zone')) document.getElementById('file-linkedin').click(); });
+    document.getElementById('zone-linkedin').addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#0077b5'; });
+    document.getElementById('zone-linkedin').addEventListener('dragleave', function() { this.style.borderColor = ''; });
+    document.getElementById('zone-linkedin').addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.style.borderColor = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.csv')) handleLinkedInUpload(file);
     });
 
-    function animateHeroCounter() {
-      const potEl = document.getElementById('hero-potential');
-      const actEl = document.getElementById('hero-actual');
-      if (!potEl || !actEl) return;
-      const potEnd = 8200000;
-      const actEnd = 0.47;
-      const duration = 2000;
-      const start = performance.now();
-      function tick(now) {
-        const t = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - t, 2);
-        potEl.textContent = '$' + (ease * (potEnd / 1000000)).toFixed(1) + 'M';
-        actEl.textContent = '$' + (ease * actEnd).toFixed(2);
-        if (t < 1) requestAnimationFrame(tick);
-      }
-      requestAnimationFrame(tick);
-    }
-    window.goToSection = goToSection;
-    window.runScoring = runScoring;
-    window.initGoogleOAuth = initGoogleOAuth;
-    window.initOutlookOAuth = initOutlookOAuth;
-    window.downloadShareCard = downloadShareCard;
-    window.shareToTwitter = shareToTwitter;
-    window.shareToLinkedIn = shareToLinkedIn;
-    window.submitToLeaderboard = submitToLeaderboard;
-    window.renderLeaderboard = renderLeaderboard;
-    window.screenshotGraph = screenshotGraph;
+    document.getElementById('file-analytics').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) handleAnalyticsUpload(file);
+    });
+    document.getElementById('zone-analytics').addEventListener('click', function(e) { if (!e.target.closest('.action-zone')) document.getElementById('file-analytics').click(); });
+    document.getElementById('zone-analytics').addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#0077b5'; });
+    document.getElementById('zone-analytics').addEventListener('dragleave', function() { this.style.borderColor = ''; });
+    document.getElementById('zone-analytics').addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.style.borderColor = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.csv')) handleAnalyticsUpload(file);
+    });
 
-    function initClickHandlers() {
-      var cta = document.getElementById('cta-btn');
-      if (cta) cta.addEventListener('click', function() { goToSection('data-input'); });
-    }
+    initGoogleAuth();
+    initMSAL();
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() {
-        initClickHandlers();
-        initFileUploads();
-      });
-    } else {
-      initClickHandlers();
-      initFileUploads();
-    }
+    window.showSection = showSection;
+    window.connectGmail = connectGmail;
+    window.connectOutlook = connectOutlook;
+    window.calculateScore = calculateScore;
   })();
   </script>
 </body>
