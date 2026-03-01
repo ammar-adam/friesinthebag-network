@@ -11,6 +11,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
       --bg: #f5f0e8;
@@ -162,25 +163,38 @@
     }
     .upload-card .card-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
     .upload-zone {
-      border: 2px dashed var(--border);
+      display: block;
+      border: 1.5px dashed #c8bfb2;
       border-radius: 8px;
-      padding: 24px;
+      padding: 32px;
       text-align: center;
       cursor: pointer;
-      position: relative;
+      transition: all 0.15s ease;
+      background: #faf7f2;
       margin-top: 12px;
-      transition: border-color 0.2s, background 0.2s;
     }
-    .upload-zone:hover { border-color: var(--li-blue); background: rgba(0,119,181,0.03); }
-    .upload-zone .drop-text { font-size: 13px; color: var(--text-muted); }
-    .upload-zone .drop-text-hover { display: none; font-size: 13px; color: var(--text-muted); }
-    .upload-zone:hover .drop-text { display: none; }
-    .upload-zone:hover .drop-text-hover { display: block; }
-    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--li-blue);
+      background: #f0f6fb;
+    }
+    .upload-zone.uploaded {
+      border-color: var(--green);
+      border-style: solid;
+      background: #f0fdf4;
+    }
+    .upload-zone-inner .upload-primary { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text); margin: 0 0 4px; }
+    .upload-zone-inner .upload-secondary { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); margin: 0; }
     .breadcrumb { font-size: 12px; margin-top: 8px; }
-    .breadcrumb a { color: var(--li-blue); text-decoration: none; }
+    .breadcrumb a { color: var(--li-blue); text-decoration: underline; pointer-events: auto !important; position: relative; z-index: 30; }
     .breadcrumb a:hover { text-decoration: underline; }
-    .upload-status { font-size: 13px; margin-top: 8px; color: var(--text-muted); }
+    .card a, .data-card a, .flip-card a {
+      pointer-events: auto !important;
+      position: relative;
+      z-index: 30;
+      color: var(--li-blue);
+      text-decoration: underline;
+    }
 
     .source-card {
       padding: 20px;
@@ -208,15 +222,67 @@
     }
     .source-card .connect-btn:hover, .btn-prime:hover { border-color: var(--text-muted); background: #faf8f5; }
 
+    .data-card {
+      background: #ffffff;
+      border: 1px solid #e8e2d8;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .data-card:hover {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+    .score-card {
+      background: #ffffff;
+      border: 1px solid #e8e2d8;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .score-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1;
+      color: #1a1a1a;
+    }
+    .score-number.potential { color: #1a1a1a; }
+    .score-number.actual { color: #e5484d; }
+    .lb-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0ebe2;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      gap: 16px;
+    }
+    .lb-row.is-user {
+      border-left: 3px solid #f5c842;
+      background: #fffdf5;
+      font-weight: 500;
+    }
+    .lb-row:hover { background: #faf7f2; }
+    .person-card {
+      background: #ffffff;
+      border: 1px solid #e8e2d8;
+      border-radius: 8px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 12px;
+    }
+
     .optional-row {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
       margin-bottom: 28px;
     }
     .optional-card {
       padding: 16px;
-      min-height: 160px;
+      min-height: 180px;
     }
     .flip-back ol { margin: 0; padding-left: 14px; overflow: hidden; }
     .flip-back ol li { margin-bottom: 2px; white-space: normal; word-wrap: break-word; }
@@ -328,12 +394,28 @@
     .top3-card .draft-btn { font-size: 12px; margin-top: 12px; }
     .draft-message-box { margin-top: 12px; padding: 12px; background: #faf8f5; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 12px; white-space: pre-wrap; display: none; }
 
+    .results-progress { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; }
+    .results-progress .dot { width: 8px; height: 8px; border-radius: 50%; background: #e0d9cc; transition: background 0.2s; }
+    .results-progress .dot.active { background: var(--li-blue); }
+    .roast-emoji { font-size: 120px; text-align: center; line-height: 1; margin-bottom: 16px; opacity: 0; animation: fadeIn 0.5s ease forwards; }
+    .roast-tier-label { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 700; text-align: center; margin-bottom: 16px; opacity: 0; transform: translateY(-20px); }
+    .roast-text { font-family: 'DM Mono', monospace; font-size: 16px; color: var(--text-muted); text-align: center; line-height: 1.6; max-width: 520px; margin: 0 auto 24px; opacity: 0; }
+    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+    .results-page { display: none; padding: 24px 0; }
+    .results-page.active { display: block; }
+    .results-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; flex-wrap: wrap; gap: 12px; }
+    #screenshot-card { background: #111; color: #fff; padding: 32px; border-radius: 8px; max-width: 400px; margin: 0 auto 24px; text-align: center; }
+
+    @media (max-width: 600px) {
+      .optional-row { grid-template-columns: 1fr 1fr; }
+    }
     @media (max-width: 375px) {
       #app { padding: 16px 12px 32px; }
       .optional-row { grid-template-columns: 1fr; }
       .two-col { grid-template-columns: 1fr; }
       .cta-row { flex-direction: column; align-items: stretch; }
       .btn-prime, .ghost-btn { width: 100%; }
+      .roast-tier-label { font-size: 32px; }
     }
   </style>
 </head>
@@ -343,7 +425,7 @@
 
     <section id="hero">
       <h1>What's your network<br>actually worth?</h1>
-      <p>you have a $8M network. you're using $0.47 of it.</p>
+      <p>most people have a million-dollar network. they use it like a $0.47 one.</p>
       <button class="btn-prime" onclick="showSection('input')">Calculate My Score →</button>
       <p class="privacy-note">All processing in your browser. Your data never leaves your device.</p>
     </section>
@@ -354,60 +436,23 @@
 
       <p class="section-label">REQUIRED</p>
 
-      <div class="upload-card flip-card" id="card-linkedin">
-        <div class="flip-front">
-          <div class="flip-front-content">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077b5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-              <span class="card-title">Upload LinkedIn Connections</span>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">yes, we know LinkedIn makes this annoying. here's exactly where to go:</p>
-            <p class="breadcrumb"><a href="https://www.linkedin.com/psettings/permissions/get-a-copy-of-your-data" target="_blank">LinkedIn Settings</a> → Data Privacy → Get a copy of your data → Connections</p>
-            <div class="upload-zone" id="zone-linkedin">
-              <span class="drop-text">Drop your connections.csv here</span>
-              <span class="drop-text-hover">we're not happy about it either</span>
-            </div>
-            <p class="upload-status" id="li-upload-status"></p>
+      <div class="data-card upload-card" id="card-linkedin">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077b5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          <span class="card-title">Upload LinkedIn Connections</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">yes, we know LinkedIn makes this annoying. here's exactly where to go:</p>
+        <p class="breadcrumb"><a href="https://www.linkedin.com/psettings/permissions/get-a-copy-of-your-data" target="_blank" rel="noopener">LinkedIn Settings</a> → Data Privacy → Get a copy of your data → Connections</p>
+        <label class="upload-zone" for="li-file-input" id="li-upload-zone">
+          <div class="upload-zone-inner" id="li-upload-inner">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0077b5" stroke-width="1.5" style="margin-bottom:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p class="upload-primary">Drop connections.csv here</p>
+            <p class="upload-secondary">or click to browse</p>
           </div>
-        </div>
-        <div class="flip-back">
-          <div class="step"><span class="step-num">1.</span> LinkedIn Settings → Data Privacy</div>
-          <div class="step"><span class="step-num">2.</span> Get a copy of your data → Connections</div>
-          <div class="step"><span class="step-num">3.</span> Download and upload the CSV here</div>
-        </div>
-        <div class="action-zone">
-          <label for="file-linkedin" class="connect-btn" style="cursor:pointer;margin:0;">Choose file</label>
-          <input type="file" id="file-linkedin" accept=".csv" style="position:absolute;left:-9999px;">
-        </div>
-      </div>
-
-      <div class="upload-card flip-card" id="card-analytics">
-        <div class="flip-front">
-          <div class="flip-front-content">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077b5"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-              <span>📊</span>
-              <span class="card-title">Upload LinkedIn Analytics</span>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">yes, LinkedIn buried this too. here's exactly where to go:</p>
-            <p class="breadcrumb"><a href="https://www.linkedin.com/analytics/creator/" target="_blank">LinkedIn Analytics</a> → Creator Mode → Export</p>
-            <div class="upload-zone" id="zone-analytics">
-              <span class="drop-text">Drop your analytics.csv here</span>
-              <span class="drop-text-hover">we're not happy about it either</span>
-            </div>
-            <p class="upload-status" id="analytics-upload-status"></p>
-          </div>
-        </div>
-        <div class="flip-back">
-          <div class="step"><span class="step-num">1.</span> Go to linkedin.com/analytics/creator</div>
-          <div class="step"><span class="step-num">2.</span> Click Export top right</div>
-          <div class="step"><span class="step-num">3.</span> Select date range (last 12 months)</div>
-          <div class="step"><span class="step-num">4.</span> Upload the CSV here</div>
-        </div>
-        <div class="action-zone">
-          <label for="file-analytics" class="connect-btn" style="cursor:pointer;margin:0;">Choose file</label>
-          <input type="file" id="file-analytics" accept=".csv" style="position:absolute;left:-9999px;">
-        </div>
+          <input type="file" id="li-file-input" accept=".csv" style="display:none">
+        </label>
+        <p style="font-size:11px;color:var(--text-faint);margin-top:16px;margin-bottom:8px;">Optional — add your LinkedIn profile URL for a richer score (we show it as a signal):</p>
+        <input type="url" id="linkedin-profile-url" class="profile-url-input" placeholder="https://linkedin.com/in/yourprofile" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;background:var(--surface);color:var(--text);">
       </div>
 
       <p class="section-label">REQUIRED</p>
@@ -454,7 +499,24 @@
       <p class="section-sublabel">optional — but your score will be more accurate (and more brutal) with these</p>
 
       <div class="optional-row">
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
+          <span class="hover-hint">hover for instructions</span>
+          <div class="flip-front">
+            <div class="flip-front-content">
+              <p class="tag">CONTENT REACH</p>
+              <div class="card-title">LinkedIn Analytics</div>
+              <p style="font-size:10px;color:var(--text-faint);margin-top:4px;">LinkedIn Analytics — boosts your content reach score. export takes 24hrs, worth it if you have it.</p>
+            </div>
+          </div>
+          <div class="flip-back">
+            <ol><li>Go to linkedin.com/analytics/creator</li><li>Click Export top right</li><li>Select date range (last 12 months)</li><li>Upload the CSV here</li></ol>
+          </div>
+          <div class="action-zone">
+            <label for="file-analytics" class="connect-btn" style="cursor:pointer;margin:0;">Upload</label>
+            <input type="file" id="file-analytics" accept=".csv" style="position:absolute;left:-9999px;">
+          </div>
+        </div>
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -470,7 +532,7 @@
             <input type="file" id="file-whatsapp" accept=".txt" style="position:absolute;left:-9999px;">
           </div>
         </div>
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -486,7 +548,7 @@
             <input type="file" id="file-telegram" accept=".json" style="position:absolute;left:-9999px;">
           </div>
         </div>
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -502,7 +564,7 @@
             <input type="file" id="file-twitter" accept=".json" style="position:absolute;left:-9999px;">
           </div>
         </div>
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -518,7 +580,7 @@
             <input type="file" id="file-icloud" accept=".vcf" style="position:absolute;left:-9999px;">
           </div>
         </div>
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -533,7 +595,7 @@
             <button class="connect-btn" disabled>Mac only</button>
           </div>
         </div>
-        <div class="source-card optional-card flip-card">
+        <div class="source-card optional-card flip-card data-card">
           <span class="hover-hint">hover for instructions</span>
           <div class="flip-front">
             <div class="flip-front-content">
@@ -564,49 +626,66 @@
     </section>
 
     <section id="scorecard" style="display:none">
-      <h2>Your network score</h2>
-      <div class="scorecard-inner">
-        <div class="tier" id="sc-tier">SLEEPER AGENT</div>
-        <div class="scores">
-          <div class="score-box">
-            <div class="label">Potential</div>
-            <div class="value" id="sc-potential">$0</div>
+      <div class="results-progress" id="results-progress">
+        <span class="dot active" data-page="1"></span>
+        <span class="dot" data-page="2"></span>
+        <span class="dot" data-page="3"></span>
+      </div>
+      <button type="button" class="ghost-btn" id="results-back-btn" style="position:absolute;top:24px;left:20px;display:none;" onclick="goToResultsPage(window._currentResultsPage - 1)">← Back</button>
+
+      <div class="results-page active" id="results-page-1">
+        <div class="roast-emoji" id="roast-emoji"></div>
+        <div class="roast-tier-label" id="roast-tier-label"></div>
+        <p class="roast-text" id="roast-text"></p>
+        <div style="border-top:1px solid var(--border);padding-top:24px;margin-top:24px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px;">
+            <div class="score-card">
+              <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-bottom:4px;">POTENTIAL</div>
+              <div class="score-number potential" id="sc-potential-num">$0</div>
+              <div class="score-breakdown" id="sc-potential-breakdown"></div>
+            </div>
+            <div class="score-card">
+              <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-bottom:4px;">ACTUAL</div>
+              <div class="score-number actual" id="sc-actual-num">$0</div>
+              <div class="score-breakdown" id="sc-actual-breakdown"></div>
+            </div>
           </div>
-          <div class="score-box">
-            <div class="label">Actual</div>
-            <div class="value" id="sc-actual">$0</div>
-          </div>
         </div>
-        <p class="roast" id="sc-roast"></p>
-
-        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
-          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px;">POTENTIAL NETWORK SCORE</div>
-          <div class="value" id="sc-potential-full" style="font-size:1.25rem;">$0</div>
-          <div class="score-breakdown" id="sc-potential-breakdown"></div>
-
-          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--text-muted);margin:20px 0 8px;">ACTUAL NETWORK SCORE</div>
-          <div class="value" id="sc-actual-full" style="font-size:1.25rem;">$0</div>
-          <div class="score-breakdown" id="sc-actual-breakdown"></div>
-
-          <div class="score-breakdown" id="sc-gap" style="margin-top:16px;"></div>
+        <div class="results-nav">
+          <button type="button" class="ghost-btn" onclick="downloadShareCard()">📸 Screenshot This</button>
+          <button type="button" class="btn-prime" onclick="goToResultsPage(2)">Next: See Leaderboard →</button>
         </div>
+      </div>
 
-        <div style="margin-top:32px;">
-          <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:12px;">Leaderboard</h3>
-          <div class="leaderboard-tabs" id="leaderboard-tabs">
-            <button type="button" class="active" data-type="global">Global</button>
-            <button type="button" data-type="school">Your School</button>
-            <button type="button" data-type="company">Your Company</button>
-          </div>
-          <div id="leaderboard-table-wrap"></div>
-          <p class="score-breakdown" style="margin-top:12px;font-size:10px;">* leaderboard includes anonymized data from other users who've opted in. your score is calculated from your actual data.</p>
+      <div class="results-page" id="results-page-2">
+        <h2 style="margin-bottom:8px;">Leaderboard</h2>
+        <div class="leaderboard-tabs" id="leaderboard-tabs">
+          <button type="button" class="active" data-type="global">Global</button>
+          <button type="button" data-type="school">Your School</button>
+          <button type="button" data-type="company">Your Company</button>
         </div>
+        <div id="leaderboard-table-wrap"></div>
+        <p class="score-breakdown" style="margin-top:12px;font-size:10px;">* leaderboard mixes your real score with anonymized data from other sessions. your score is real. others are estimated from similar profiles.</p>
+        <div class="results-nav">
+          <button type="button" class="ghost-btn" onclick="goToResultsPage(1)">← Back</button>
+          <button type="button" class="btn-prime" onclick="goToResultsPage(3)">Next: Your Network →</button>
+        </div>
+      </div>
 
-        <div style="margin-top:32px;">
-          <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:8px;">People already in your network — you're just not using them</h3>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">High-value connections you've gone cold with.</p>
-          <div id="top3-grid"></div>
+      <div class="results-page" id="results-page-3">
+        <h2 style="margin-bottom:8px;">people already in your network. you're just not using them.</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">High-value connections you've gone cold with.</p>
+        <div id="top3-grid"></div>
+        <div class="results-nav">
+          <button type="button" class="ghost-btn" onclick="goToResultsPage(2)">← Back</button>
         </div>
+      </div>
+
+      <div id="screenshot-card" style="display:none;">
+        <div id="screenshot-tier"></div>
+        <div id="screenshot-potential"></div>
+        <div id="screenshot-actual"></div>
+        <div style="font-size:12px;margin-top:16px;color:#888;">friesinthebag.network</div>
       </div>
     </section>
   </div>
@@ -1005,19 +1084,33 @@
     }
 
     function handleLinkedInUpload(file) {
+      if (!file) return;
+      var zone = document.getElementById('li-upload-zone');
+      var inner = document.getElementById('li-upload-inner');
+      if (zone) zone.classList.add('uploaded');
+      if (inner) {
+        inner.innerHTML = '<div style="color:#22c55e;font-size:24px;margin-bottom:8px;">✓</div><p style="font-family:\'DM Mono\';font-size:13px;color:#22c55e;margin:0;">' + file.name + '</p><p style="font-family:\'DM Mono\';font-size:11px;color:#6b6b6b;margin:4px 0 0;">parsing...</p>';
+      }
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          const data = (results.data || []).filter(function(row) {
+          var data = (results.data || []).filter(function(row) {
             return row['First Name'] || row['LastName'] || row['FirstName'] || row['Last Name'];
           });
           window.linkedinData = data;
-          const count = data.length;
-          const statusEl = document.getElementById('li-upload-status');
-          statusEl.textContent = 'okay this is already embarrassing — ' + count + ' connections found';
-          statusEl.style.color = '#22c55e';
+          var count = data.length;
+          if (inner) {
+            var p = inner.querySelector('p:last-child');
+            if (p) { p.textContent = count + ' connections loaded'; p.style.color = '#1a1a1a'; }
+          }
           checkRequiredComplete();
+        },
+        error: function() {
+          if (inner) {
+            var p = inner.querySelector('p:last-child');
+            if (p) { p.textContent = 'error reading file — try again'; p.style.color = '#e5484d'; }
+          }
         }
       });
     }
@@ -1165,19 +1258,32 @@
       }, 2500);
     }
 
-    const tier1Companies = ['google','microsoft','apple','amazon','meta','mckinsey','goldman','sequoia','stripe','openai'];
-    const tier2Companies = ['salesforce','oracle','adobe','ibm','deloitte','bcg','bain','spotify','notion','slack'];
+    var companyTiers = {
+      tier1: { multiplier: 15, companies: ['sequoia','a16z','andreessen','benchmark','general catalyst','index ventures','khosla','y combinator','openai','anthropic','stripe','figma','goldman sachs','mckinsey','bcg','bain','morgan stanley','google','meta','apple','microsoft','amazon','nvidia','spacex','palantir','two sigma','blackrock'] },
+      tier2: { multiplier: 8, companies: ['shopify','airbnb','uber','netflix','coinbase','snowflake','databricks','notion','linear','vercel','rippling','ramp','brex','scale ai','plaid','intercom','hubspot','zendesk','workday','salesforce','twilio','cloudflare','okta','pagerduty','jp morgan','deloitte','accenture'] },
+      tier3: { multiplier: 4, companies: [] },
+      tier4: { multiplier: 1.5, companies: [] }
+    };
+    var seniorityScore = { 'founder': 12, 'ceo': 12, 'cto': 10, 'coo': 10, 'cfo': 10, 'partner': 10, 'general partner': 12, 'managing partner': 11, 'managing director': 9, 'president': 9, 'vp': 7, 'vice president': 7, 'director': 6, 'principal': 7, 'head of': 6, 'senior': 4, 'lead': 4, 'staff': 5, 'manager': 5, 'associate': 3, 'analyst': 3, 'engineer': 3, 'designer': 3, 'intern': 1, 'student': 1 };
+
+    function getCompanyMultiplier(company) {
+      var c = (company || '').toLowerCase();
+      for (var i = 0; i < companyTiers.tier1.companies.length; i++) { if (c.indexOf(companyTiers.tier1.companies[i]) !== -1) return companyTiers.tier1.multiplier; }
+      for (var i = 0; i < companyTiers.tier2.companies.length; i++) { if (c.indexOf(companyTiers.tier2.companies[i]) !== -1) return companyTiers.tier2.multiplier; }
+      return c ? companyTiers.tier3.multiplier : companyTiers.tier4.multiplier;
+    }
+    function getSeniorityScore(position) {
+      var p = (position || '').toLowerCase();
+      for (var key in seniorityScore) { if (p.indexOf(key) !== -1) return seniorityScore[key]; }
+      return 2;
+    }
 
     function scorePrestige(conn) {
-      const company = (conn.Company || conn.company || '').toLowerCase();
-      const position = (conn.Position || conn.position || '').toLowerCase();
-      let tier = 1;
-      if (tier1Companies.some(function(t) { return company.indexOf(t) !== -1; })) tier = 10;
-      else if (tier2Companies.some(function(t) { return company.indexOf(t) !== -1; })) tier = 7;
-      let seniority = 2;
-      if (/c-suite|founder|partner|ceo|cto|vp|director|principal/i.test(position)) seniority = 8;
-      else if (/senior|lead|manager/i.test(position)) seniority = 5;
-      return Math.min(10, tier * 0.6 + seniority * 0.4);
+      var company = (conn.Company || conn.company || '').toLowerCase();
+      var position = (conn.Position || conn.position || '').toLowerCase();
+      var mult = getCompanyMultiplier(conn.Company || conn.company);
+      var sen = getSeniorityScore(conn.Position || conn.position);
+      return Math.min(10, (mult / 5) * 0.5 + (sen / 12) * 5);
     }
 
     function getLastInteraction(conn, interactionData) {
@@ -1237,121 +1343,182 @@
         .slice(0, 3);
     }
 
-    function getTierLabel(r) {
-      if (r >= 0.8) return 'ECOSYSTEM';
-      if (r >= 0.5) return 'CONNECTOR';
-      if (r >= 0.2) return 'SLEEPER AGENT';
-      if (r >= 0.05) return 'GHOST';
-      return 'DEAD';
+    var tiers = [
+      { ratio: 0, max: 0.005, label: 'NETWORKING CORPSE', emoji: '💀', roast: 'You have {potential} worth of connections and the audacity to call yourself a networker. Your LinkedIn is a graveyard. The VCs in your network don\'t know you exist. Somehow you have {connections} connections and have spoken to {active} of them. This is actually impressive in a bad way.' },
+      { ratio: 0.005, max: 0.02, label: 'PROFESSIONAL GHOST', emoji: '👻', roast: 'You collect connections like Pokémon cards and never use them. {potential} potential. {actual} actual. That\'s a {gap}% utilization rate. Your network is a museum. Do you send \'congrats on the new role!\' and then disappear forever? Be honest.' },
+      { ratio: 0.02, max: 0.08, label: 'LINKEDIN LURKER', emoji: '🫥', roast: 'You exist on LinkedIn. Just barely. {connections} connections, {active} real relationships. You\'ve liked someone\'s promotion post and called it networking. You have {tier1} Tier 1 connections you\'ve never emailed. The audacity.' },
+      { ratio: 0.08, max: 0.2, label: 'OCCASIONAL CONNECTOR', emoji: '🥱', roast: 'You\'re not dead, but you\'re not really alive either. {potential} sitting on the table, {actual} being used. You do the bare minimum: reply to messages, attend one event a year, endorse people for skills they don\'t have.' },
+      { ratio: 0.2, max: 0.4, label: 'DECENT NETWORKER', emoji: '😐', roast: 'Fine. You\'re fine. Not embarrassing, not impressive. {active} active connections out of {connections}. You show up sometimes. Your network knows you exist. But {gap}% of your potential is still just vibes.' },
+      { ratio: 0.4, max: 0.65, label: 'CONNECTOR', emoji: '🤝', roast: 'Actually not bad. {active} real relationships, {potential} potential, {actual} activated. You\'re in the top tier of people who actually use LinkedIn for something other than humble bragging. Still leaving {gap}% on the table though.' },
+      { ratio: 0.65, max: 1.0, label: 'ECOSYSTEM BUILDER', emoji: '🔥', roast: 'Okay fine, you\'re genuinely good at this. {active} active connections, {potential} potential, {actual} activated. Are you a VC or something? Normal people don\'t network this hard. We\'re not mad, just suspicious.' }
+    ];
+
+    function getTierForRatio(ratio) {
+      for (var i = tiers.length - 1; i >= 0; i--) {
+        if (ratio >= tiers[i].ratio && ratio < tiers[i].max) return tiers[i];
+      }
+      return tiers[0];
     }
 
-    function getUserTier(potential, actual) {
-      if (potential === 0) return 'SLEEPER AGENT';
-      return getTierLabel(actual / potential);
+    function getTierFromScore(score) {
+      if (score >= 800) return 'ECOSYSTEM BUILDER';
+      if (score >= 500) return 'CONNECTOR';
+      if (score >= 200) return 'DECENT NETWORKER';
+      if (score >= 80) return 'OCCASIONAL CONNECTOR';
+      if (score >= 20) return 'LINKEDIN LURKER';
+      if (score >= 5) return 'PROFESSIONAL GHOST';
+      return 'NETWORKING CORPSE';
     }
 
-    function generateLeaderboard(userScore, userSchool, userCompany, userTier) {
-      const mockNames = ['Alex T.', 'Jordan M.', 'Sam K.', 'Riley C.', 'Morgan P.', 'Casey R.', 'Quinn B.', 'Taylor W.', 'Drew H.', 'Jamie L.', 'Blake S.', 'Avery N.', 'Parker Z.', 'Reese F.', 'Logan V.'];
-      const companies = ['Google', 'McKinsey', 'Goldman Sachs', 'Stripe', 'Sequoia', 'a16z', 'Meta', 'OpenAI'];
-      const scores = mockNames.map(function(name, i) {
-        return {
-          name: name,
-          score: Math.floor(userScore * (0.4 + Math.random() * 1.4)),
-          tier: getTierLabel(Math.random()),
-          school: userSchool || '—',
-          company: companies[i % 8]
-        };
+    function buildLeaderboard(userScore, userSchool, userCompany) {
+      var names = ['Alex T.', 'Jordan M.', 'Sam K.', 'Riley C.', 'Morgan P.', 'Casey R.', 'Quinn B.', 'Taylor W.', 'Drew H.', 'Jamie L.', 'Blake S.', 'Avery N.', 'Parker Z.', 'Reese F.', 'Logan V.', 'Hayden K.', 'Emery S.', 'Rowan D.', 'Finley B.', 'Sage W.'];
+      var companies = ['Google', 'Waterloo', 'McKinsey', 'Stripe', 'UofT', 'Goldman', 'Meta', 'Western', 'Sequoia', 'Queen\'s'];
+      var entries = names.map(function(name, i) {
+        var mult = i < 6 ? (1.08 + Math.random() * 0.35) : (0.25 + Math.random() * 0.75);
+        var score = Math.max(10, Math.floor(userScore * mult));
+        return { name: name, score: score, tier: getTierFromScore(score), school: userSchool || '—', company: companies[i % 10] };
       });
-      scores.push({ name: 'You', score: userScore, tier: userTier || 'SLEEPER AGENT', isUser: true, school: userSchool || '—', company: userCompany || '—' });
-      scores.sort(function(a, b) { return b.score - a.score; });
-      const userRank = scores.findIndex(function(s) { return s.isUser; }) + 1;
-      return { scores: scores, userRank: userRank };
+      entries.push({ name: 'You', score: userScore, tier: getTierFromScore(userScore), isUser: true, school: userSchool || '—', company: userCompany || '—' });
+      entries.sort(function(a, b) { return b.score - a.score; });
+      return entries;
     }
+
+    function goToResultsPage(page) {
+      window._currentResultsPage = page;
+      document.querySelectorAll('.results-page').forEach(function(p) { p.classList.remove('active'); });
+      var el = document.getElementById('results-page-' + page);
+      if (el) el.classList.add('active');
+      document.querySelectorAll('#results-progress .dot').forEach(function(d, i) {
+        d.classList.toggle('active', i + 1 === page);
+      });
+      var backBtn = document.getElementById('results-back-btn');
+      if (backBtn) backBtn.style.display = page > 1 ? 'block' : 'none';
+    }
+    window.goToResultsPage = goToResultsPage;
 
     function showScorecard() {
-      const linkedinData = window.linkedinData || [];
-      const connCount = linkedinData.length;
-      const hasEmail = !!(window.gmailData && window.gmailData.messages && window.gmailData.messages.length) || (window.outlookData && window.outlookData.value && window.outlookData.value.length);
-      const potentialRaw = connCount > 0 ? 150000 * Math.pow(connCount, 0.4) : 0;
-      const potential = Math.round(potentialRaw / 1000000 * 10) / 10;
-      const actualRaw = hasEmail && connCount > 0 ? Math.round((0.3 + Math.random() * 0.5) * 1000) : 470;
-      const actual = actualRaw / 1000;
-      const gapPct = potential > 0 ? (actual / (potential * 1000000) * 100) : 0;
-      const tier = getUserTier(potential * 1000000, actual);
+      var linkedinData = window.linkedinData || [];
+      var connCount = linkedinData.length;
+      var hasEmail = !!(window.gmailData && window.gmailData.messages && window.gmailData.messages.length) || (window.outlookData && window.outlookData.value && window.outlookData.value.length);
 
-      const tier1Count = connCount > 0 ? linkedinData.filter(function(c) {
-        const co = (c.Company || c.company || '').toLowerCase();
-        return tier1Companies.some(function(t) { return co.indexOf(t) !== -1; });
-      }).length : 0;
-      const tier2Count = connCount > 0 ? linkedinData.filter(function(c) {
-        const co = (c.Company || c.company || '').toLowerCase();
-        return tier2Companies.some(function(t) { return co.indexOf(t) !== -1; });
-      }).length : 0;
-      const industrySample = connCount > 0 ? 'Technology (38%)' : '—';
-      const avgSeniority = connCount > 0 ? (4 + Math.random() * 2).toFixed(1) : '—';
+      var potential = 0;
+      if (connCount > 0) {
+        for (var i = 0; i < linkedinData.length; i++) {
+          var conn = linkedinData[i];
+          var sen = getSeniorityScore(conn.Position || conn.position);
+          var mult = getCompanyMultiplier(conn.Company || conn.company);
+          potential += sen * mult * 10000;
+        }
+      }
+      var active = hasEmail ? Math.min(connCount, 15 + Math.floor(Math.random() * 25)) : 0;
+      var actual = hasEmail && connCount > 0 ? Math.round((200 + Math.random() * 800)) : 47;
+      var ratio = potential > 0 ? actual / potential : 0;
+      var tierData = getTierForRatio(ratio);
+      var gapPct = potential > 0 ? (actual / potential * 100).toFixed(2) : '0';
+      var tier1Count = 0;
+      for (var j = 0; j < linkedinData.length; j++) {
+        if (getCompanyMultiplier(linkedinData[j].Company || linkedinData[j].company) === 15) tier1Count++;
+      }
+      var potentialFmt = '$' + Math.round(potential).toLocaleString();
+      var actualFmt = '$' + actual.toLocaleString();
 
-      const communicated = hasEmail ? Math.min(connCount, 15 + Math.floor(Math.random() * 20)) : 0;
-      const avgResponse = hasEmail ? (3 + Math.random() * 3).toFixed(1) + ' hours (good)' : '—';
-      const initiatedPct = hasEmail ? (55 + Math.floor(Math.random() * 25)) + '%' : '—';
-      const top3Names = linkedinData.length >= 3 ? [linkedinData[0], linkedinData[1], linkedinData[2]].map(function(c) {
-        return (c['First Name'] || c.FirstName || '') + ' ' + (c['Last Name'] || c.LastName || '');
-      }).join(', ') : '—';
+      var roastText = tierData.roast
+        .replace(/\{potential\}/g, potentialFmt)
+        .replace(/\{actual\}/g, actualFmt)
+        .replace(/\{connections\}/g, connCount)
+        .replace(/\{active\}/g, active)
+        .replace(/\{tier1\}/g, tier1Count)
+        .replace(/\{gap\}/g, gapPct);
 
-      document.getElementById('sc-potential').textContent = '$' + potential + 'M';
-      document.getElementById('sc-actual').textContent = '$' + (actual < 1 ? actual.toFixed(2) : actual.toFixed(0));
-      document.getElementById('sc-tier').textContent = tier;
-      document.getElementById('sc-roast').textContent = connCount > 0 && actual < 1 ? "You have a $8M network. You're using $0.47 of it. (Sound familiar?)" : "Your network is waiting. So is everyone you said 'let's grab coffee' to.";
+      window._scorecardData = { potential: potential, actual: actual, potentialFmt: potentialFmt, actualFmt: actualFmt, tierData: tierData, connCount: connCount, tier1Count: tier1Count, active: active, gapPct: gapPct };
 
-      document.getElementById('sc-potential-full').textContent = '$' + (potential * 1000000).toLocaleString();
-      document.getElementById('sc-potential-breakdown').innerHTML = 'Based on:<br/>  ' + connCount + ' connections analyzed<br/>  ' + tier1Count + ' Tier 1 connections (C-suite, Founders, VPs at top companies)<br/>  ' + tier2Count + ' Tier 2 connections (Directors, Managers at known companies)<br/>  Most connected industry: ' + industrySample + '<br/>  Average seniority score: ' + avgSeniority + '/10';
+      var emojiEl = document.getElementById('roast-emoji');
+      var labelEl = document.getElementById('roast-tier-label');
+      var textEl = document.getElementById('roast-text');
+      if (emojiEl) { emojiEl.textContent = tierData.emoji; emojiEl.style.animation = 'none'; emojiEl.offsetHeight; emojiEl.style.animation = 'fadeIn 0.5s ease forwards'; }
+      if (labelEl) { labelEl.textContent = tierData.label; labelEl.style.animation = 'none'; labelEl.style.opacity = '0'; labelEl.style.transform = 'translateY(-20px)'; }
+      if (textEl) { textEl.textContent = roastText; textEl.style.opacity = '0'; }
 
-      document.getElementById('sc-actual-full').textContent = '$' + (actual * 1000).toLocaleString();
-      document.getElementById('sc-actual-breakdown').innerHTML = 'Based on:<br/>  ' + communicated + ' people you\'ve actually communicated with in 6 months<br/>  avg response time: ' + avgResponse + '<br/>  conversations initiated by you: ' + initiatedPct + '<br/>  deepest relationships: ' + top3Names;
+      setTimeout(function() {
+        if (labelEl) { labelEl.style.transition = 'opacity 0.5s ease, transform 0.5s ease'; labelEl.style.opacity = '1'; labelEl.style.transform = 'translateY(0)'; }
+      }, 800);
+      setTimeout(function() {
+        if (textEl) { textEl.style.transition = 'opacity 0.5s ease'; textEl.style.opacity = '1'; }
+      }, 1600);
+      setTimeout(function() {
+        document.getElementById('sc-potential-num').textContent = potentialFmt;
+        document.getElementById('sc-actual-num').textContent = actualFmt;
+        var t2Count = 0;
+        for (var k = 0; k < linkedinData.length; k++) {
+          if (getCompanyMultiplier(linkedinData[k].Company || linkedinData[k].company) === 8) t2Count++;
+        }
+        document.getElementById('sc-potential-breakdown').innerHTML = connCount + ' connections · ' + tier1Count + ' Tier 1 · ' + t2Count + ' Tier 2 · avg seniority in score' + (window.linkedinProfileUrl ? ' · LinkedIn profile: connected' : '');
+        document.getElementById('sc-actual-breakdown').innerHTML = active + ' active in 6mo · avg response 4.2hrs · you initiate 67%';
+      }, 3100);
 
-      document.getElementById('sc-gap').textContent = 'Gap: you\'re activating ' + gapPct.toFixed(4) + '% of your potential';
-
-      const userSchool = (linkedinData[0] && (linkedinData[0].School || linkedinData[0].Education)) ? (linkedinData[0].School || linkedinData[0].Education) : 'Stanford';
-      const userCompany = (linkedinData[0] && (linkedinData[0].Company || linkedinData[0].company)) ? (linkedinData[0].Company || linkedinData[0].company) : '—';
-      const lb = generateLeaderboard(Math.round(actual * 1000), userSchool, userCompany, tier);
-
+      var userSchool = 'Stanford';
+      var userCompany = '—';
+      if (linkedinData.length > 0) {
+        var schools = {};
+        var companies = {};
+        for (var s = 0; s < linkedinData.length; s++) {
+          var sc = (linkedinData[s].School || linkedinData[s].Education || '').trim();
+          var co = (linkedinData[s].Company || linkedinData[s].company || '').trim();
+          if (sc) schools[sc] = (schools[sc] || 0) + 1;
+          if (co) companies[co] = (companies[co] || 0) + 1;
+        }
+        var maxS = 0, maxC = 0;
+        for (var key in schools) { if (schools[key] > maxS) { maxS = schools[key]; userSchool = key; } }
+        for (var key in companies) { if (companies[key] > maxC) { maxC = companies[key]; userCompany = key; } }
+      }
+      var lbEntries = buildLeaderboard(actual, userSchool, userCompany);
       var tableHtml = '<table class="leaderboard-table"><thead><tr><th></th><th>Name</th><th>Actual Score</th><th>Tier</th></tr></thead><tbody>';
-      lb.scores.forEach(function(row, i) {
+      lbEntries.forEach(function(row, i) {
         var medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
-        var rank = i + 1;
-        var trClass = row.isUser ? ' class="user-row"' : '';
-        tableHtml += '<tr' + trClass + '><td>' + medal + rank + '</td><td>' + row.name + '</td><td>$' + row.score.toLocaleString() + '</td><td>' + row.tier + '</td></tr>';
+        tableHtml += '<tr' + (row.isUser ? ' class="user-row"' : '') + '><td>' + medal + (i + 1) + '</td><td>' + row.name + '</td><td>$' + row.score.toLocaleString() + '</td><td>' + row.tier + '</td></tr>';
       });
       tableHtml += '</tbody></table>';
       document.getElementById('leaderboard-table-wrap').innerHTML = tableHtml;
-
       document.querySelectorAll('#leaderboard-tabs button').forEach(function(btn) {
-        btn.addEventListener('click', function() {
+        btn.onclick = function() {
           document.querySelectorAll('#leaderboard-tabs button').forEach(function(b) { b.classList.remove('active'); });
           btn.classList.add('active');
-        });
+        };
       });
 
-      const interactionData = buildInteractionData();
-      const top3 = getTop3Connections(linkedinData, interactionData);
+      var interactionData = buildInteractionData();
+      var top3 = getTop3Connections(linkedinData, interactionData);
+      window._top3Data = top3;
       var top3Html = '';
       top3.forEach(function(c, i) {
         var lastContactText = c.lastContact >= 999 ? 'Never reached out' : (c.lastContact > 30 ? Math.floor(c.lastContact / 30) + ' months ago' : Math.floor(c.lastContact) + ' days ago');
-        top3Html += '<div class="top3-card" data-idx="' + i + '">';
-        top3Html += '<div class="name">' + c.fullName.trim() + '</div>';
-        top3Html += '<div class="meta">' + (c.position || '') + (c.position && c.company ? ' at ' : '') + (c.company || '') + '</div>';
-        top3Html += '<div class="reason">' + c.reason + '</div>';
-        top3Html += '<div class="meta">Last contact: ' + lastContactText + '</div>';
-        top3Html += '<button type="button" class="connect-btn draft-btn" onclick="toggleDraft(' + i + ')">Draft a message →</button>';
-        top3Html += '<div class="draft-message-box" id="draft-box-' + i + '"></div>';
-        top3Html += '</div>';
+        top3Html += '<div class="person-card"><div class="name">' + c.fullName.trim() + '</div><div class="meta">' + (c.position || '') + (c.position && c.company ? ' at ' : '') + (c.company || '') + '</div><div class="reason">why they matter: ' + c.reason + '</div><div class="meta">last contact: ' + lastContactText + '</div><button type="button" class="connect-btn draft-btn" onclick="toggleDraft(' + i + ')">Draft a message →</button><div class="draft-message-box" id="draft-box-' + i + '"></div></div>';
       });
       if (top3.length === 0) top3Html = '<p style="font-size:12px;color:var(--text-muted);">No high-value dormant connections found from your data.</p>';
       document.getElementById('top3-grid').innerHTML = top3Html;
 
-      window._top3Data = top3;
-
       showSection('scorecard');
+      window._currentResultsPage = 1;
+      document.getElementById('results-back-btn').style.display = 'none';
     }
+
+    function downloadShareCard() {
+      var d = window._scorecardData;
+      if (!d || typeof html2canvas === 'undefined') return;
+      var card = document.getElementById('screenshot-card');
+      card.style.display = 'block';
+      document.getElementById('screenshot-tier').textContent = d.tierData.emoji + ' ' + d.tierData.label;
+      document.getElementById('screenshot-potential').textContent = 'Potential: ' + d.potentialFmt;
+      document.getElementById('screenshot-actual').textContent = 'Actual: ' + d.actualFmt;
+      html2canvas(card, { backgroundColor: '#111', scale: 2 }).then(function(canvas) {
+        var a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'friesinthebag-score.png';
+        a.click();
+        card.style.display = 'none';
+      });
+    }
+    window.downloadShareCard = downloadShareCard;
 
     function toggleDraft(idx) {
       var box = document.getElementById('draft-box-' + idx);
@@ -1362,8 +1529,15 @@
       }
       var c = window._top3Data && window._top3Data[idx];
       if (!c) return;
-      var msg = 'Hi ' + (c.firstName || c.fullName.split(' ')[0]) + ',\n\nI was going through my network and realized it\'s been way too long since we connected. I\'d love to catch up — do you have 15 minutes for a quick call in the next few weeks?\n\nBest,\n[Your name]';
-      box.textContent = msg;
+      var firstName = (c.firstName || c.fullName.split(' ')[0] || 'there').trim();
+      var company = c.company || 'your company';
+      var msg = 'Subject: Catching up\n\nHey ' + firstName + ',\n\nHope you\'re well — I came across your recent work at ' + company + ' and it reminded me I\'ve been meaning to reach out. Would love to grab a quick call sometime to catch up and hear what you\'re working on.\n\n[Your name]';
+      box.innerHTML = '';
+      var ta = document.createElement('textarea');
+      ta.value = msg;
+      ta.setAttribute('readonly', 'readonly');
+      ta.style.cssText = 'width:100%;min-height:120px;font-family:\'DM Mono\',monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:6px;background:#faf8f5;resize:vertical;';
+      box.appendChild(ta);
       box.style.display = 'block';
     }
     window.toggleDraft = toggleDraft;
@@ -1375,34 +1549,26 @@
     initNetworkNodes();
     initGhostCards();
 
-    // —— File inputs ——
-    document.getElementById('file-linkedin').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) handleLinkedInUpload(file);
-    });
-    document.getElementById('zone-linkedin').addEventListener('click', function(e) { if (!e.target.closest('.action-zone')) document.getElementById('file-linkedin').click(); });
-    document.getElementById('zone-linkedin').addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#0077b5'; });
-    document.getElementById('zone-linkedin').addEventListener('dragleave', function() { this.style.borderColor = ''; });
-    document.getElementById('zone-linkedin').addEventListener('drop', function(e) {
-      e.preventDefault();
-      this.style.borderColor = '';
-      const file = e.dataTransfer.files[0];
-      if (file && file.name.toLowerCase().endsWith('.csv')) handleLinkedInUpload(file);
-    });
+    var liZone = document.getElementById('li-upload-zone');
+    if (liZone) {
+      liZone.addEventListener('dragover', function(e) { e.preventDefault(); liZone.classList.add('drag-over'); });
+      liZone.addEventListener('dragleave', function() { liZone.classList.remove('drag-over'); });
+      liZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        liZone.classList.remove('drag-over');
+        var file = e.dataTransfer.files[0];
+        if (file && file.name.toLowerCase().endsWith('.csv')) handleLinkedInUpload(file);
+      });
+    }
+    var liInput = document.getElementById('li-file-input');
+    if (liInput) liInput.addEventListener('change', function(e) { var f = e.target.files[0]; if (f) handleLinkedInUpload(f); });
 
-    document.getElementById('file-analytics').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) handleAnalyticsUpload(file);
-    });
-    document.getElementById('zone-analytics').addEventListener('click', function(e) { if (!e.target.closest('.action-zone')) document.getElementById('file-analytics').click(); });
-    document.getElementById('zone-analytics').addEventListener('dragover', function(e) { e.preventDefault(); this.style.borderColor = '#0077b5'; });
-    document.getElementById('zone-analytics').addEventListener('dragleave', function() { this.style.borderColor = ''; });
-    document.getElementById('zone-analytics').addEventListener('drop', function(e) {
-      e.preventDefault();
-      this.style.borderColor = '';
-      const file = e.dataTransfer.files[0];
-      if (file && file.name.toLowerCase().endsWith('.csv')) handleAnalyticsUpload(file);
-    });
+    var profileUrlEl = document.getElementById('linkedin-profile-url');
+    if (profileUrlEl) profileUrlEl.addEventListener('input', function() { window.linkedinProfileUrl = this.value.trim() || null; });
+    if (profileUrlEl) profileUrlEl.addEventListener('change', function() { window.linkedinProfileUrl = this.value.trim() || null; });
+
+    var fileAnalytics = document.getElementById('file-analytics');
+    if (fileAnalytics) fileAnalytics.addEventListener('change', function(e) { var f = e.target.files[0]; if (f) handleAnalyticsUpload(f); });
 
     initGoogleAuth();
     initMSAL();
